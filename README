@@ -1,0 +1,10 @@
+Railcraft mainline development for 1.12 is in hiatus, and there are bugs to be fixed.
+
+So here it is.
+
+As of now, it:
+
+- Fixes custom rolling machine recipes with certain size being incorrectly displayed in JEI.
+
+This mod, along with its source, is released in public domain.
+You can certainly use it in modpacks.
