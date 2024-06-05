@@ -24,7 +24,7 @@ jobs:
         id: build
         run: ./gradlew build githubActionOutput --stacktrace
       - name: Upload to CurseForge
-        uses: itsmeow/curseforge-upload@v3
+        uses: itsmeow/curseforge-upload@v3.1.2
         with:
           file_path: ${{ steps.build.outputs.artifact_path }}
           game_endpoint: 'minecraft'

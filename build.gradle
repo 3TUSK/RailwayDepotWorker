@@ -68,7 +68,9 @@ task githubActionOutput {
         System.env.GITHUB_ACTIONS
     }
     doLast {
-        println "::set-output name=artifact_path::${jar.archivePath.getAbsolutePath()}"
-        println "::set-output name=artifact_name::${jar.archiveName}"
+        def outputFile = new File(System.env.GITHUB_OUTPUT)
+        def newLine = System.getProperty('line.separator')
+        outputFile << newLine << "artifact_name=${jar.archiveName}"
+                << newLine << "artifact_path=${jar.archivePath.getAbsolutePath()}"
     }
 }
