@@ -17,7 +17,7 @@ public class ModContainer extends DummyModContainer {
         final ModMetadata meta = this.getMetadata();
         meta.modId = "railway_depot_worker";
         meta.name = "Railway Depot Worker";
-        meta.description = "Coremod to fix issues found in Railcraft. Railcraft dev is in hiatus, so...";
+        meta.description = "Coremod to fix issues found in Railcraft. Railcraft dev for 1.12.2 is in hiatus, so...";
         meta.version = "0.1.0";
         meta.authorList = Collections.singletonList("3TUSK");
         meta.requiredMods = Collections.singleton(VersionParser.parseVersionReference("railcraft@(,12.1.0-beta-8]"));
