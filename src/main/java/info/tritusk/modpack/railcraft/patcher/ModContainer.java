@@ -20,7 +20,7 @@ public class ModContainer extends DummyModContainer {
         meta.description = "Coremod to fix issues found in Railcraft. Railcraft dev for 1.12.2 is in hiatus, so...";
         meta.version = "0.1.0";
         meta.authorList = Collections.singletonList("3TUSK");
-        meta.requiredMods = Collections.singleton(VersionParser.parseVersionReference("railcraft@(,12.1.0-beta-8]"));
+        meta.requiredMods = Collections.singleton(VersionParser.parseVersionReference("railcraft@(,12.1.0-beta-8.1]"));
     }
 
     @Override
