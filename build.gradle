@@ -1,0 +1,74 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        maven {
+            name = "forge"
+            url = "http://files.minecraftforge.net/maven"
+        }
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
+    }
+}
+
+apply plugin: 'net.minecraftforge.gradle.forge'
+
+minecraft {
+    version = "1.12.2-14.23.5.2847"
+    runDir = "run"
+
+    mappings = "stable_39"
+}
+
+version = main_version
+group = "info.tritusk.modpack.toolkit"
+archivesBaseName = "RailwayDepotWorker"
+
+if (System.getenv("CI")) {
+    version += "+build.${System.getenv("GITHUB_RUN_NUMBER")}"
+} else {
+    version += "+build.private"
+}
+
+repositories {
+    maven {
+        name = "jei"
+        url = "https://dvs1.progwml6.com/files/maven"
+    }
+}
+
+dependencies {
+    // Not referred in code; it is here so that we have it while we launch the game in dev env.
+    implementation group: 'mezz.jei', name: 'jei_1.12.2', version: '4.15.0.278'
+}
+
+jar {
+    manifest {
+        attributes 'Maven-Artifact': "${project.group}:${project.archivesBaseName}:${project.version}"
+        attributes 'FMLCorePlugin': 'info.tritusk.modpack.railcraft.patcher.EntryPoint'
+    }
+}
+
+processResources {
+    inputs.property "version", project.version
+
+    from(sourceSets.main.resources.srcDirs) {
+        include 'mcmod.info'
+        expand 'version':project.version
+    }
+        
+    from(sourceSets.main.resources.srcDirs) {
+        exclude 'mcmod.info'
+    }
+}
+
+
+task githubActionOutput {
+    onlyIf {
+        System.env.GITHUB_ACTIONS
+    }
+    doLast {
+        println "::set-output name=artifact_path::${jar.archivePath.getAbsolutePath()}"
+        println "::set-output name=artifact_name::${jar.archiveName}"
+    }
+}

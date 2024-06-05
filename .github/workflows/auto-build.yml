@@ -1,0 +1,35 @@
+name: auto-build
+on:
+  push:
+    paths:
+      - "src/**"
+      - "build.gradle"
+      - "gradle.properties"
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Apply Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: $${{ runner.os }}-gradle
+      - name: Build
+        id: build
+        run: ./gradlew build githubActionOutput --stacktrace
+      - name: Upload to CurseForge
+        uses: itsmeow/curseforge-upload@v3
+        with:
+          file_path: ${{ steps.build.outputs.artifact_path }}
+          game_endpoint: 'minecraft'
+          release_type: 'release'
+          relations: 'railcraft:requiredDependency'
+          game_versions: 'Minecraft 1.12:1.12.2,Java 8,Forge'
+          project_id: '1031521'
+          token: ${{ secrets.CF_API_TOKEN }}
