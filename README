@@ -5,6 +5,11 @@ So here it is.
 As of now, it:
 
 - Fixes custom rolling machine recipes with certain size being incorrectly displayed in JEI.
+- Aggressively fixes FPS drop when some Railcraft machines are running, e.g. boiler.
+
+This mod works in Minecraft 1.12.2 ONLY.
+
+This mod works with either the original Railcraft, or ACGaming's fork.
 
 This mod, along with its source, is released in public domain.
 You can certainly use it in modpacks.
