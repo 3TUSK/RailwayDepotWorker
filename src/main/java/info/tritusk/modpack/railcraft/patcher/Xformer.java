@@ -18,13 +18,52 @@ import java.util.ListIterator;
 public class Xformer implements IClassTransformer {
     @Override
     public byte[] transform(String name, String transformedName, byte[] basicClass) {
-        if ("mods.railcraft.common.plugins.jei.rolling.RollingMachineRecipeCategory".equals(transformedName)) {
-            return tryFixRollingRecipeDisplayInJEI(basicClass);
+        if (transformedName == null) {
+            return basicClass;
         }
-        if ("mods.railcraft.common.blocks.TileRailcraft".equals(transformedName)) {
-            return tryPatchingTileRailcraft(basicClass);
+        switch (transformedName) {
+            case "mods.railcraft.common.plugins.jei.rolling.RollingMachineRecipeCategory": return tryFixRollingRecipeDisplayInJEI(basicClass);
+            case "mods.railcraft.common.blocks.TileRailcraft": return tryPatchingTileRailcraft(basicClass);
+            case "mods.railcraft.common.blocks.machine.worldspike.TileWorldspike": return tryExpandStackSizeLimitInWorldSpike(basicClass);
+            default: return basicClass;
         }
-        return basicClass;
+    }
+
+    private byte[] tryExpandStackSizeLimitInWorldSpike(byte[] basicClass) {
+        ClassNode node = new ClassNode();
+        new ClassReader(basicClass).accept(node, 0);
+
+        MethodNode constructor = null;
+        for (MethodNode m : node.methods) {
+            if ("<init>".equals(m.name)) {
+                constructor = m;
+                break;
+            }
+        }
+
+        if (constructor == null) { // Not sure how is that even possible, but yeah, fool-proof.
+            return basicClass;
+        }
+
+        InsnList instructions = constructor.instructions;
+        AbstractInsnNode target = instructions.getLast();
+        do {
+            if (target.getOpcode() == Opcodes.ALOAD) {
+                break;
+            }
+        } while ((target = target.getPrevious()) != null);
+
+        if (target == null) {
+            return basicClass;
+        }
+
+        // Return early before the getInventory().setInventoryStackLimit(16) call chain,
+        // effectively nullify the call.
+        instructions.insertBefore(target, new InsnNode(Opcodes.RETURN));
+
+        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+        node.accept(writer);
+        return writer.toByteArray();
     }
 
     private static byte[] tryPatchingTileRailcraft(byte[] basicClass) {

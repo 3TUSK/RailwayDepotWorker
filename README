@@ -5,7 +5,11 @@ So here it is.
 As of now, it:
 
 - Fixes custom rolling machine recipes with certain size being incorrectly displayed in JEI.
+  (Railcraft/Railcraft#2120)
 - Aggressively fixes FPS drop when some Railcraft machines are running, e.g. boiler.
+  (Railcraft/Railcraft#2121)
+- Allows worldspike to stack fuels to item's own maximum stack size
+  (Railcraft/Railcraft#2082)
 
 This mod works in Minecraft 1.12.2 ONLY.
 
