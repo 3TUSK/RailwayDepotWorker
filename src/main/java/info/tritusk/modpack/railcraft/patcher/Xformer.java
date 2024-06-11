@@ -37,12 +37,40 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.client.gui.GuiTrackEmbarking":
             case "mods.railcraft.client.gui.GuiTrackLauncher":
             case "mods.railcraft.client.gui.GuiTrackPriming": return tryUseI18nForTrackGui(basicClass);
-            // TODO Activator get another issue to fix
-            //case "mods.railcraft.client.gui.GuiTrackActivator":
+            case "mods.railcraft.client.gui.GuiTrackActivator": return tryMakingActivatorTrackGUIBetter(basicClass);
             case "mods.railcraft.client.gui.GuiTrackRouting": return tryFixGuiRouting(basicClass);
             case "mods.railcraft.client.gui.GuiManipulatorCartRF": return tryDisableInvTitle(basicClass);
             default: return basicClass;
         }
+    }
+
+    private byte[] tryMakingActivatorTrackGUIBetter(byte[] basicClass) {
+        ClassWriter writer = new ClassWriter(0);
+        new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
+            final String targetMethodName = FMLDeobfuscatingRemapper.INSTANCE.mapMethodName(
+                    "net/minecraft/client/gui/inventory/GuiContainer", "func_146979_b", "(II)V");
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
+                MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
+                if (targetMethodName.equals(name)) {
+                    mv = new MethodVisitor(Opcodes.ASM5, mv) {
+                        @Override
+                        public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                            // Shift the cart filter label up, so that it is not outside the GUI
+                            if (opcode == Opcodes.INVOKESTATIC && "drawStringCenteredAtPos".equals(name)) {
+                                super.visitInsn(Opcodes.POP);
+                                super.visitInsn(Opcodes.POP);
+                                super.visitIntInsn(Opcodes.BIPUSH, 44);
+                                super.visitIntInsn(Opcodes.BIPUSH, 28);
+                            }
+                            super.visitMethodInsn(opcode, owner, name, desc, itf);
+                        }
+                    };
+                }
+                return mv;
+            }
+        }, 0);
+        return writer.toByteArray();
     }
 
     private byte[] tryDisableInvTitle(byte[] basicClass) {

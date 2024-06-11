@@ -14,6 +14,7 @@ As of now, it:
   (Railcraft/Railcraft#2097)
 - Fixes crash upon opening GUI of RF Loader / Unloader, making them usable
   (Railcraft/Railcraft#2098)
+- Fixes "Carts" label flying out of window in Activator Track GUI
 
 This mod works in Minecraft 1.12.2 ONLY.
 
