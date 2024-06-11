@@ -10,6 +10,10 @@ As of now, it:
   (Railcraft/Railcraft#2121)
 - Allows worldspike to stack fuels to item's own maximum stack size
   (Railcraft/Railcraft#2082)
+- Fixes some outfitted track GUIs showing raw translation key as title
+  (Railcraft/Railcraft#2097)
+- Fixes crash upon opening GUI of RF Loader / Unloader, making them usable
+  (Railcraft/Railcraft#2098)
 
 This mod works in Minecraft 1.12.2 ONLY.
 
