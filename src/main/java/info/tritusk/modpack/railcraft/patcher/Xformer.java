@@ -1,9 +1,12 @@
 package info.tritusk.modpack.railcraft.patcher;
 
 import net.minecraft.launchwrapper.IClassTransformer;
+import net.minecraftforge.fml.common.asm.transformers.deobf.FMLDeobfuscatingRemapper;
 import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
+import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
@@ -170,45 +173,31 @@ public class Xformer implements IClassTransformer {
     }
 
     private byte[] tryUseI18nForTrackGui(byte[] basicClass) {
-        ClassNode node = new ClassNode();
-        new ClassReader(basicClass).accept(node, 0);
-
-        MethodNode constructor = null;
-        for (MethodNode m : node.methods) {
-            if ("<init>".equals(m.name)) {
-                constructor = m;
-                break;
-            }
-        }
-
-        if (constructor == null) { // Not sure how is that even possible, but yeah, fool-proof.
-            return basicClass;
-        }
-
-        // Attempt to locate the INVOKEVIRTUAL just before INVOKESPECIAL.
-        // This should be a call to TileTrackOutfitted.func_70005_c_ (String getName())
-        InsnList instructions = constructor.instructions;
-        AbstractInsnNode target = instructions.getFirst();
-        do {
-            if (target.getOpcode() == Opcodes.INVOKESPECIAL) {
-                break;
-            }
-        } while ((target = target.getNext()) != null);
-        if (target != null) {
-            target = target.getPrevious();
-        }
-        if (target == null || target.getOpcode() != Opcodes.INVOKEVIRTUAL) {
-            return basicClass;
-        }
-
-        instructions.set(target, new MethodInsnNode(Opcodes.INVOKESTATIC,
-                "info/tritusk/modpack/railcraft/patcher/I18nHook",
-                "translateOutfittedTrackName",
-                "(Lmods/railcraft/common/blocks/tracks/outfitted/TileTrackOutfitted;)Ljava/lang/String;",
-                false));
-
         ClassWriter writer = new ClassWriter(0);
-        node.accept(writer);
+        new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
+            final String targetMethodName = FMLDeobfuscatingRemapper.INSTANCE.mapMethodName(
+                    "net/minecraft/world/IWorldNameable", "func_70005_c_", "()Ljava/lang/String;");
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
+                MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
+                if ("<init>".equals(name)) {
+                    mv = new MethodVisitor(Opcodes.ASM5, mv) {
+                        @Override
+                        public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                            if (opcode == Opcodes.INVOKEVIRTUAL && targetMethodName.equals(name)) {
+                                opcode = Opcodes.INVOKESTATIC;
+                                owner = "info/tritusk/modpack/railcraft/patcher/I18nHook";
+                                name = "translateOutfittedTrackName";
+                                desc = "(Lmods/railcraft/common/blocks/tracks/outfitted/TileTrackOutfitted;)Ljava/lang/String;";
+                                itf = false;
+                            }
+                            super.visitMethodInsn(opcode, owner, name, desc, itf);
+                        }
+                    };
+                }
+                return mv;
+            }
+        }, 0);
         return writer.toByteArray();
     }
 
