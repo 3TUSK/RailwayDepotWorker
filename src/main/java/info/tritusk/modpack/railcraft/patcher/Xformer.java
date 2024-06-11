@@ -277,51 +277,30 @@ public class Xformer implements IClassTransformer {
     }
 
     private static byte[] tryFixRollingRecipeDisplayInJEI(byte[] basicClass) {
-        ClassNode node = new ClassNode();
-        new ClassReader(basicClass).accept(node, 0);
-
-        MethodNode setRecipeMethod = null;
-        for (MethodNode m : node.methods) {
-            if ("setRecipe".equals(m.name)) {
-                setRecipeMethod = m;
+        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
+                MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
+                if ("setRecipe".equals(name)) {
+                    mv = new MethodVisitor(Opcodes.ASM5, mv) {
+                        @Override
+                        public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                            if (opcode == Opcodes.INVOKEINTERFACE && "setInputs".equals(name)) {
+                                super.visitVarInsn(Opcodes.ALOAD, 2);
+                                opcode = Opcodes.INVOKESTATIC;
+                                owner = "info/tritusk/modpack/railcraft/patcher/JEIHook";
+                                name = "setInputs0";
+                                desc = "(Lmezz/jei/api/gui/ICraftingGridHelper;Lmezz/jei/api/gui/IGuiItemStackGroup;Ljava/util/List;Lmezz/jei/api/recipe/IRecipeWrapper;)V";
+                                itf = false;
+                            }
+                            super.visitMethodInsn(opcode, owner, name, desc, itf);
+                        }
+                    };
+                }
+                return mv;
             }
-        }
-
-        if (setRecipeMethod == null) {
-            // System.out.println("Did not find method, skipping");
-            return basicClass;
-        }
-
-        InsnList instructions = setRecipeMethod.instructions;
-        AbstractInsnNode target = null;
-        for (ListIterator<AbstractInsnNode> itr = instructions.iterator(); itr.hasNext();) {
-            AbstractInsnNode instruction = itr.next();
-            if (instruction.getOpcode() != Opcodes.INVOKEINTERFACE) {
-                continue;
-            }
-            MethodInsnNode maybeTarget = (MethodInsnNode) instruction;
-            if (maybeTarget.name.equals("setInputs")) {
-                target = instruction;
-                break;
-            }
-        }
-
-        if (target == null) {
-            // System.out.println("Did not find target, skipping");
-            return basicClass;
-        }
-
-        instructions.insertBefore(target, new VarInsnNode(Opcodes.ALOAD, 2)); // Param IRecipeWrapper recipeWrapper
-
-        instructions.set(target, new MethodInsnNode(Opcodes.INVOKESTATIC,
-                "info/tritusk/modpack/railcraft/patcher/JEIHook",
-                "setInputs0",
-                "(Lmezz/jei/api/gui/ICraftingGridHelper;Lmezz/jei/api/gui/IGuiItemStackGroup;Ljava/util/List;Lmezz/jei/api/recipe/IRecipeWrapper;)V",
-                false));
-
-
-        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
-        node.accept(writer);
+        }, 0);
         return writer.toByteArray();
     }
 
