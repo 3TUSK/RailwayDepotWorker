@@ -3,12 +3,16 @@ package info.tritusk.modpack.railcraft.patcher;
 import net.minecraft.launchwrapper.IClassTransformer;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.Label;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
+import org.objectweb.asm.tree.FrameNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
+import org.objectweb.asm.tree.JumpInsnNode;
+import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TypeInsnNode;
@@ -27,6 +31,8 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.common.plugins.jei.rolling.RollingMachineRecipeCategory": return tryFixRollingRecipeDisplayInJEI(basicClass);
             case "mods.railcraft.common.blocks.TileRailcraft": return tryPatchingTileRailcraft(basicClass);
             case "mods.railcraft.common.blocks.machine.worldspike.TileWorldspike": return tryExpandStackSizeLimitInWorldSpike(basicClass);
+            // TODO ACGaming's Railcraft fork disabled RF Loader/Unloader GUI; we might want to restore it.
+            case "mods.railcraft.common.gui.containers.RailcraftContainer": return tryPatchRailcraftContainer(basicClass);
             case "mods.railcraft.client.gui.GuiTrackDelayedLocking":
             case "mods.railcraft.client.gui.GuiTrackEmbarking":
             case "mods.railcraft.client.gui.GuiTrackLauncher":
@@ -34,8 +40,75 @@ public class Xformer implements IClassTransformer {
             // TODO Activator get another issue to fix
             //case "mods.railcraft.client.gui.GuiTrackActivator":
             case "mods.railcraft.client.gui.GuiTrackRouting": return tryFixGuiRouting(basicClass);
+            case "mods.railcraft.client.gui.GuiManipulatorCartRF": return tryDisableInvTitle(basicClass);
             default: return basicClass;
         }
+    }
+
+    private byte[] tryDisableInvTitle(byte[] basicClass) {
+        ClassNode node = new ClassNode();
+        new ClassReader(basicClass).accept(node, 0);
+
+        MethodNode targetMethod = null;
+        for (MethodNode m : node.methods) {
+            if ("<init>".equals(m.name)) {
+                targetMethod = m;
+                break;
+            }
+        }
+
+        if (targetMethod == null) { // Not sure how is that even possible, but yeah, fool-proof.
+            return basicClass;
+        }
+
+        InsnList instructions = targetMethod.instructions;
+        AbstractInsnNode endOfMethod = instructions.getLast();
+        while (endOfMethod != null && endOfMethod.getOpcode() != Opcodes.RETURN) {
+            endOfMethod = endOfMethod.getPrevious();
+        }
+        if (endOfMethod == null) {
+            return basicClass;
+        }
+
+        InsnList injectAtTail = new InsnList();
+        injectAtTail.add(new VarInsnNode(Opcodes.ALOAD, 0));
+        injectAtTail.add(new InsnNode(Opcodes.ICONST_0));
+        injectAtTail.add(new FieldInsnNode(Opcodes.PUTFIELD, "mods/railcraft/client/gui/GuiManipulatorCartRF", "drawInvTitle", "Z"));
+        targetMethod.instructions.insertBefore(endOfMethod, injectAtTail);
+
+        ClassWriter writer = new ClassWriter(0);
+        node.accept(writer);
+        return writer.toByteArray();
+    }
+
+    private byte[] tryPatchRailcraftContainer(byte[] basicClass) {
+        ClassNode node = new ClassNode();
+        new ClassReader(basicClass).accept(node, 0);
+
+        MethodNode targetMethod = null;
+        for (MethodNode m : node.methods) {
+            if ("addPlayerSlots".equals(m.name) && "(Lnet/minecraft/entity/player/InventoryPlayer;I)V".equals(m.desc)) {
+                targetMethod = m;
+                break;
+            }
+        }
+
+        if (targetMethod == null) {
+            return basicClass;
+        }
+
+        InsnList injectAtHead = new InsnList();
+        LabelNode nullCheckPass = new LabelNode(new Label());
+        injectAtHead.add(new VarInsnNode(Opcodes.ALOAD, 1));
+        injectAtHead.add(new JumpInsnNode(Opcodes.IFNONNULL, nullCheckPass));
+        injectAtHead.add(new InsnNode(Opcodes.RETURN));
+        injectAtHead.add(new FrameNode(Opcodes.F_APPEND, 0, new Object[0], 1, new Object[] { "Lnet/minecraft/entity/player/InventoryPlayer;" }));
+        injectAtHead.add(nullCheckPass);
+        targetMethod.instructions.insert(injectAtHead);
+
+        ClassWriter writer = new ClassWriter(0);
+        node.accept(writer);
+        return writer.toByteArray();
     }
 
     private byte[] tryFixGuiRouting(byte[] basicClass) {
