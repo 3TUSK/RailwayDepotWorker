@@ -16,13 +16,10 @@ import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
-import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
-import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
 import java.util.Collections;
-import java.util.ListIterator;
 
 public class Xformer implements IClassTransformer {
     @Override
@@ -115,60 +112,39 @@ public class Xformer implements IClassTransformer {
     }
 
     private byte[] tryFixGuiRouting(byte[] basicClass) {
-        ClassNode node = new ClassNode();
-        new ClassReader(basicClass).accept(node, 0);
-
-        MethodNode constructor = null;
-        for (MethodNode m : node.methods) {
-            if ("<init>".equals(m.name)) {
-                constructor = m;
-                break;
-            }
-        }
-
-        if (constructor == null) { // Not sure how is that even possible, but yeah, fool-proof.
-            return basicClass;
-        }
-
-        // Attempt to locate the INVOKESPECIAL.
-        InsnList instructions = constructor.instructions;
-        AbstractInsnNode target = instructions.getFirst();
-        do {
-            if (target.getOpcode() == Opcodes.INVOKESPECIAL) {
-                break;
-            }
-        } while ((target = target.getNext()) != null);
-        if (target == null) {
-            return basicClass;
-        }
-
-        InsnList staticCallForTranslatedName = new InsnList();
-        staticCallForTranslatedName.add(new VarInsnNode(Opcodes.ALOAD, 1));
-        staticCallForTranslatedName.add(new FieldInsnNode(Opcodes.GETFIELD,
-                "mods/railcraft/common/gui/containers/ContainerTrackRouting",
-                "kit", "Lmods/railcraft/common/blocks/tracks/outfitted/kits/TrackKitRailcraft;"));
-        staticCallForTranslatedName.add(new TypeInsnNode(Opcodes.CHECKCAST,
-                "mods/railcraft/common/blocks/tracks/outfitted/kits/TrackKitRouting"));
-        staticCallForTranslatedName.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL,
-                "mods/railcraft/common/blocks/tracks/outfitted/kits/TrackKitRouting",
-                "getTrackKit",
-                "()Lmods/railcraft/api/tracks/TrackKit;",
-                false));
-        staticCallForTranslatedName.add(new MethodInsnNode(Opcodes.INVOKESTATIC,
-                "mods/railcraft/common/plugins/forge/LocalizationPlugin",
-                "localize",
-                "(Lmods/railcraft/api/tracks/TrackKit;)Lnet/minecraft/util/text/ITextComponent;",
-                false));
-        instructions.insertBefore(target, staticCallForTranslatedName);
-        MethodInsnNode newConstructorCall = new MethodInsnNode(Opcodes.INVOKESPECIAL,
-                "mods/railcraft/client/gui/GuiTitled",
-                "<init>",
-                "(Lnet/minecraft/world/IWorldNameable;Lmods/railcraft/common/gui/containers/RailcraftContainer;Ljava/lang/String;Lnet/minecraft/util/text/ITextComponent;)V",
-                false);
-        instructions.set(target, newConstructorCall);
-
         ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
-        node.accept(writer);
+        new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
+                MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
+                if ("<init>".equals(name)) {
+                    mv = new MethodVisitor(Opcodes.ASM5, mv) {
+                        @Override
+                        public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                            if (opcode == Opcodes.INVOKESPECIAL && "mods/railcraft/client/gui/GuiTitled".equals(owner)) {
+                                super.visitVarInsn(Opcodes.ALOAD, 1);
+                                super.visitFieldInsn(Opcodes.GETFIELD, "mods/railcraft/common/gui/containers/ContainerTrackRouting",
+                                        "kit", "Lmods/railcraft/common/blocks/tracks/outfitted/kits/TrackKitRailcraft;");
+                                super.visitTypeInsn(Opcodes.CHECKCAST, "mods/railcraft/common/blocks/tracks/outfitted/kits/TrackKitRouting");
+                                super.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                                        "mods/railcraft/common/blocks/tracks/outfitted/kits/TrackKitRouting",
+                                        "getTrackKit",
+                                        "()Lmods/railcraft/api/tracks/TrackKit;",
+                                        false);
+                                super.visitMethodInsn(Opcodes.INVOKESTATIC,
+                                        "mods/railcraft/common/plugins/forge/LocalizationPlugin",
+                                        "localize",
+                                        "(Lmods/railcraft/api/tracks/TrackKit;)Lnet/minecraft/util/text/ITextComponent;",
+                                        false);
+                                desc = "(Lnet/minecraft/world/IWorldNameable;Lmods/railcraft/common/gui/containers/RailcraftContainer;Ljava/lang/String;Lnet/minecraft/util/text/ITextComponent;)V";
+                            }
+                            super.visitMethodInsn(opcode, owner, name, desc, itf);
+                        }
+                    };
+                }
+                return mv;
+            }
+        }, 0);
         return writer.toByteArray();
     }
 
