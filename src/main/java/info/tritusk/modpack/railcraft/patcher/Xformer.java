@@ -142,7 +142,7 @@ public class Xformer implements IClassTransformer {
         instructions.insertBefore(target, new VarInsnNode(Opcodes.ALOAD, 2)); // Param IRecipeWrapper recipeWrapper
 
         instructions.set(target, new MethodInsnNode(Opcodes.INVOKESTATIC,
-                "info/tritusk/modpack/railcraft/patcher/Hook",
+                "info/tritusk/modpack/railcraft/patcher/JEIHook",
                 "setInputs0",
                 "(Lmezz/jei/api/gui/ICraftingGridHelper;Lmezz/jei/api/gui/IGuiItemStackGroup;Ljava/util/List;Lmezz/jei/api/recipe/IRecipeWrapper;)V",
                 false));

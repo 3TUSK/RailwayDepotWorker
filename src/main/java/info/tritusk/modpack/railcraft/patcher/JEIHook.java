@@ -10,7 +10,7 @@ import net.minecraft.item.crafting.ShapedRecipes;
 import java.lang.reflect.Field;
 import java.util.List;
 
-public class Hook {
+public class JEIHook {
 
     private static Class<?> railcraftRecipeWrapper;
     private static Field realRecipeRef;
