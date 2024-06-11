@@ -6,10 +6,12 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
 import java.util.Collections;
@@ -25,8 +27,116 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.common.plugins.jei.rolling.RollingMachineRecipeCategory": return tryFixRollingRecipeDisplayInJEI(basicClass);
             case "mods.railcraft.common.blocks.TileRailcraft": return tryPatchingTileRailcraft(basicClass);
             case "mods.railcraft.common.blocks.machine.worldspike.TileWorldspike": return tryExpandStackSizeLimitInWorldSpike(basicClass);
+            case "mods.railcraft.client.gui.GuiTrackDelayedLocking":
+            case "mods.railcraft.client.gui.GuiTrackEmbarking":
+            case "mods.railcraft.client.gui.GuiTrackLauncher":
+            case "mods.railcraft.client.gui.GuiTrackPriming": return tryUseI18nForTrackGui(basicClass);
+            // TODO Activator get another issue to fix
+            //case "mods.railcraft.client.gui.GuiTrackActivator":
+            case "mods.railcraft.client.gui.GuiTrackRouting": return tryFixGuiRouting(basicClass);
             default: return basicClass;
         }
+    }
+
+    private byte[] tryFixGuiRouting(byte[] basicClass) {
+        ClassNode node = new ClassNode();
+        new ClassReader(basicClass).accept(node, 0);
+
+        MethodNode constructor = null;
+        for (MethodNode m : node.methods) {
+            if ("<init>".equals(m.name)) {
+                constructor = m;
+                break;
+            }
+        }
+
+        if (constructor == null) { // Not sure how is that even possible, but yeah, fool-proof.
+            return basicClass;
+        }
+
+        // Attempt to locate the INVOKESPECIAL.
+        InsnList instructions = constructor.instructions;
+        AbstractInsnNode target = instructions.getFirst();
+        do {
+            if (target.getOpcode() == Opcodes.INVOKESPECIAL) {
+                break;
+            }
+        } while ((target = target.getNext()) != null);
+        if (target == null) {
+            return basicClass;
+        }
+
+        InsnList staticCallForTranslatedName = new InsnList();
+        staticCallForTranslatedName.add(new VarInsnNode(Opcodes.ALOAD, 1));
+        staticCallForTranslatedName.add(new FieldInsnNode(Opcodes.GETFIELD,
+                "mods/railcraft/common/gui/containers/ContainerTrackRouting",
+                "kit", "Lmods/railcraft/common/blocks/tracks/outfitted/kits/TrackKitRailcraft;"));
+        staticCallForTranslatedName.add(new TypeInsnNode(Opcodes.CHECKCAST,
+                "mods/railcraft/common/blocks/tracks/outfitted/kits/TrackKitRouting"));
+        staticCallForTranslatedName.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL,
+                "mods/railcraft/common/blocks/tracks/outfitted/kits/TrackKitRouting",
+                "getTrackKit",
+                "()Lmods/railcraft/api/tracks/TrackKit;",
+                false));
+        staticCallForTranslatedName.add(new MethodInsnNode(Opcodes.INVOKESTATIC,
+                "mods/railcraft/common/plugins/forge/LocalizationPlugin",
+                "localize",
+                "(Lmods/railcraft/api/tracks/TrackKit;)Lnet/minecraft/util/text/ITextComponent;",
+                false));
+        instructions.insertBefore(target, staticCallForTranslatedName);
+        MethodInsnNode newConstructorCall = new MethodInsnNode(Opcodes.INVOKESPECIAL,
+                "mods/railcraft/client/gui/GuiTitled",
+                "<init>",
+                "(Lnet/minecraft/world/IWorldNameable;Lmods/railcraft/common/gui/containers/RailcraftContainer;Ljava/lang/String;Lnet/minecraft/util/text/ITextComponent;)V",
+                false);
+        instructions.set(target, newConstructorCall);
+
+        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+        node.accept(writer);
+        return writer.toByteArray();
+    }
+
+    private byte[] tryUseI18nForTrackGui(byte[] basicClass) {
+        ClassNode node = new ClassNode();
+        new ClassReader(basicClass).accept(node, 0);
+
+        MethodNode constructor = null;
+        for (MethodNode m : node.methods) {
+            if ("<init>".equals(m.name)) {
+                constructor = m;
+                break;
+            }
+        }
+
+        if (constructor == null) { // Not sure how is that even possible, but yeah, fool-proof.
+            return basicClass;
+        }
+
+        // Attempt to locate the INVOKEVIRTUAL just before INVOKESPECIAL.
+        // This should be a call to TileTrackOutfitted.func_70005_c_ (String getName())
+        InsnList instructions = constructor.instructions;
+        AbstractInsnNode target = instructions.getFirst();
+        do {
+            if (target.getOpcode() == Opcodes.INVOKESPECIAL) {
+                break;
+            }
+        } while ((target = target.getNext()) != null);
+        if (target != null) {
+            target = target.getPrevious();
+        }
+        if (target == null || target.getOpcode() != Opcodes.INVOKEVIRTUAL) {
+            return basicClass;
+        }
+
+        instructions.set(target, new MethodInsnNode(Opcodes.INVOKESTATIC,
+                "info/tritusk/modpack/railcraft/patcher/I18nHook",
+                "translateOutfittedTrackName",
+                "(Lmods/railcraft/common/blocks/tracks/outfitted/TileTrackOutfitted;)Ljava/lang/String;",
+                false));
+
+        ClassWriter writer = new ClassWriter(0);
+        node.accept(writer);
+        return writer.toByteArray();
     }
 
     private byte[] tryExpandStackSizeLimitInWorldSpike(byte[] basicClass) {

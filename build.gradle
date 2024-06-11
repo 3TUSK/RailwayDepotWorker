@@ -35,11 +35,16 @@ repositories {
         name = "jei"
         url = "https://dvs1.progwml6.com/files/maven"
     }
+    maven {
+        name = 'CurseMaven'
+        url "https://cursemaven.com"
+    }
 }
 
 dependencies {
-    // Not referred in code; it is here so that we have it while we launch the game in dev env.
     implementation group: 'mezz.jei', name: 'jei_1.12.2', version: '4.15.0.278'
+
+    deobfCompile group: 'curse.maven', name: 'railcraft-51195', version: '3853491'
 }
 
 jar {
