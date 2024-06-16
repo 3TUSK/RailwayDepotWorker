@@ -15,6 +15,12 @@ As of now, it:
 - Fixes crash upon opening GUI of RF Loader / Unloader, making them usable
   (Railcraft/Railcraft#2098)
 - Fixes "Carts" label flying out of window in Activator Track GUI
+- Fixes crashes when breaking bottom layer of a completed water tank
+  (Railcraft/Railcraft#2101 - courtesy of ACGaming)
+- Fixes Steam Turbine not forming when using IC2Classic
+  (Railcraft/Railcraft#2040 - courtesy of ACGaming)
+- Fixes tooltips are not shown in Steel Anvil GUI
+  (Railcraft/Railcraft#2093 - courtesy of ACGaming)
 
 This mod works in Minecraft 1.12.2 ONLY.
 

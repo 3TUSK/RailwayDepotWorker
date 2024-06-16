@@ -31,8 +31,12 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.common.plugins.jei.rolling.RollingMachineRecipeCategory": return tryFixRollingRecipeDisplayInJEI(basicClass);
             case "mods.railcraft.common.blocks.TileRailcraft": return tryPatchingTileRailcraft(basicClass);
             case "mods.railcraft.common.blocks.machine.worldspike.TileWorldspike": return tryExpandStackSizeLimitInWorldSpike(basicClass);
-            // TODO ACGaming's Railcraft fork disabled RF Loader/Unloader GUI; we might want to restore it.
+            case "mods.railcraft.common.blocks.structures.StructurePattern": return tryFixStructurePatternCheck(basicClass);
+            case "mods.railcraft.common.blocks.logic.IC2EmitterLogic": return tryFixIC2EmitterLogic(basicClass);
+            case "mods.railcraft.common.blocks.machine.manipulator.TileRFLoader":
+            case "mods.railcraft.common.blocks.machine.manipulator.TileRFUnloader": return tryReenableRFManipulatorGUI(basicClass);
             case "mods.railcraft.common.gui.containers.RailcraftContainer": return tryPatchRailcraftContainer(basicClass);
+            case "mods.railcraft.client.gui.GuiAnvil": return tryFixAnvilScreen(basicClass);
             case "mods.railcraft.client.gui.GuiTrackDelayedLocking":
             case "mods.railcraft.client.gui.GuiTrackEmbarking":
             case "mods.railcraft.client.gui.GuiTrackLauncher":
@@ -42,6 +46,142 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.client.gui.GuiManipulatorCartRF": return tryDisableInvTitle(basicClass);
             default: return basicClass;
         }
+    }
+
+    private static byte[] tryReenableRFManipulatorGUI(byte[] basicClass) {
+        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
+                MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
+                if ("openGui".equals(name)) {
+                    mv = new MethodVisitor(Opcodes.ASM5, mv) {
+
+                        final String teWorldHolder = FMLDeobfuscatingRemapper.INSTANCE.mapFieldName("net/minecraft/tileentity/TileEntity", "field_145850_b", "Lnet/minecraft/world/world;");
+
+                        private boolean openGuiCall = false;
+
+                        @Override
+                        public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                            if ("mods/railcraft/common/gui/GuiHandler".equals(owner) && "openGui".equals(name)) {
+                                this.openGuiCall = true;
+                            }
+                            super.visitMethodInsn(opcode, owner, name, desc, itf);
+                        }
+
+                        @Override
+                        public void visitInsn(int opcode) {
+                            if (opcode == Opcodes.IRETURN && !this.openGuiCall) {
+                                super.visitFieldInsn(Opcodes.GETSTATIC, "mods/railcraft/common/gui/EnumGui", "MANIPULATOR_RF", "Lmods/railcraft/common/gui/EnumGui;");
+                                super.visitVarInsn(Opcodes.ALOAD, 1);
+                                super.visitVarInsn(Opcodes.ALOAD, 0);
+                                super.visitFieldInsn(Opcodes.GETFIELD, "mods/railcraft/common/blocks/machine/manipulator/TileRFManipulator", this.teWorldHolder, "Lnet/minecraft/world/World;");
+                                super.visitVarInsn(Opcodes.ALOAD, 0);
+                                super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "mods/railcraft/common/blocks/machine/manipulator/TileRFManipulator", "getX", "()I", false);
+                                super.visitVarInsn(Opcodes.ALOAD, 0);
+                                super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "mods/railcraft/common/blocks/machine/manipulator/TileRFManipulator", "getY", "()I", false);
+                                super.visitVarInsn(Opcodes.ALOAD, 0);
+                                super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "mods/railcraft/common/blocks/machine/manipulator/TileRFManipulator", "getZ", "()I", false);
+                                super.visitMethodInsn(Opcodes.INVOKESTATIC, "mods/railcraft/common/gui/GuiHandler", "openGui", "(Lmods/railcraft/common/gui/EnumGui;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/world/World;III)V", false);
+                            }
+                            super.visitInsn(opcode);
+                        }
+                    };
+                }
+                return mv;
+            }
+        }, 0);
+        return writer.toByteArray();
+    }
+
+    private static byte[] tryFixIC2EmitterLogic(byte[] basicClass) {
+        ClassWriter writer = new ClassWriter(0);
+        new ClassReader(basicClass).accept(new IC2EmitterLogicPatcher(Opcodes.ASM5, writer), 0);
+        return writer.toByteArray();
+    }
+
+    private static byte[] tryFixStructurePatternCheck(byte[] basicClass) {
+        ClassWriter writer = new ClassWriter(0);
+        new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
+                MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
+                if ("getPatternMarker".equals(name) && "(Lnet/minecraft/util/math/BlockPos;)C".equals(desc)) {
+                    mv = new MethodVisitor(Opcodes.ASM5, mv) {
+
+                        private boolean foundFix = false;
+
+                        @Override
+                        public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                            if (opcode == Opcodes.INVOKEVIRTUAL && "getPatternMarker".equals(name) && !foundFix) {
+                                opcode = Opcodes.INVOKESTATIC;
+                                owner = "info/tritusk/modpack/railcraft/patcher/StructurePatternHook";
+                                name = "getPatternMarker0";
+                                desc = "(Lmods/railcraft/common/blocks/structures/StructurePattern;III)C";
+                                itf = false;
+                            }
+                            super.visitMethodInsn(opcode, owner, name, desc, itf);
+                        }
+
+                        @Override
+                        public void visitIntInsn(int opcode, int operand) {
+                            // Try detecting the presence of ACGaming's fix. If found we will just skip patching.
+                            if (opcode == Opcodes.BIPUSH && operand == (int)'O') {
+                                this.foundFix = true;
+                            }
+                            super.visitIntInsn(opcode, operand);
+                        }
+                    };
+                }
+                return mv;
+            }
+        }, 0);
+        return writer.toByteArray();
+    }
+
+    private static byte[] tryFixAnvilScreen(byte[] basicClass) {
+
+        ClassWriter writer = new ClassWriter(0);
+        new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
+            final String targetMethodName = FMLDeobfuscatingRemapper.INSTANCE.mapMethodName(
+                    "net/minecraft/client/gui/inventory/GuiContainer", "func_73863_a", "(IIF)V");
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
+                MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
+                if (targetMethodName.equals(name)) {
+                    mv = new MethodVisitor(Opcodes.ASM5, mv) {
+                        final String tooltipMethod = FMLDeobfuscatingRemapper.INSTANCE.mapMethodName(
+                                "net/minecraft/client/gui/inventory/GuiContainer", "func_191948_b", "(II)V"
+                        );
+
+                        private boolean foundFix = false;
+
+                        @Override
+                        public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                            // Try detecting the presence of ACGaming's fix. If found we will just skip patching.
+                            if (name.equals(tooltipMethod)) {
+                                this.foundFix = true;
+                            }
+                            super.visitMethodInsn(opcode, owner, name, desc, itf);
+                        }
+
+                        @Override
+                        public void visitIntInsn(int opcode, int operand) {
+                            // 2896 is GL11.GL_LIGHTING. We need extra call there.
+                            if (opcode == Opcodes.SIPUSH && operand == 2896 && !this.foundFix) {
+                                super.visitVarInsn(Opcodes.ALOAD, 0);
+                                super.visitIntInsn(Opcodes.ILOAD, 1);
+                                super.visitIntInsn(Opcodes.ILOAD, 2);
+                                super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "net/minecraft/client/gui/inventory/GuiContainer", tooltipMethod, "(II)V", false);
+                            }
+                            super.visitIntInsn(opcode, operand);
+                        }
+                    };
+                }
+                return mv;
+            }
+        }, 0);
+        return writer.toByteArray();
     }
 
     private byte[] tryMakingActivatorTrackGUIBetter(byte[] basicClass) {
