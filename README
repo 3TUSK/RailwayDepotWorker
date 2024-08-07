@@ -18,7 +18,7 @@ As of now, it:
 - Fixes crashes when breaking bottom layer of a completed water tank
   (Railcraft/Railcraft#2101 - courtesy of ACGaming)
 - Fixes Steam Turbine not forming when using IC2Classic
-  (Railcraft/Railcraft#2040 - courtesy of ACGaming)
+  (Railcraft/Railcraft#2040 - courtesy of Speiger)
 - Fixes tooltips are not shown in Steel Anvil GUI
   (Railcraft/Railcraft#2093 - courtesy of ACGaming)
 
