@@ -21,6 +21,8 @@ As of now, it:
   (Railcraft/Railcraft#2040 - courtesy of Speiger)
 - Fixes tooltips are not shown in Steel Anvil GUI
   (Railcraft/Railcraft#2093 - courtesy of ACGaming)
+- Provide alternative recipes for electrodes, allowing inputs to be in any column
+  (3TUSK/RailwayDeoptWorker#1)
 
 This mod works in Minecraft 1.12.2 ONLY.
 
@@ -28,3 +30,14 @@ This mod works with either the original Railcraft, or ACGaming's fork.
 
 This mod, along with its source, is released in public domain.
 You can certainly use it in modpacks.
+
+------
+
+TODO
+
+- Figure out the intended behavior when using Crowbar on Delayed Locking track.
+  Current behavior is switching mode, i.e. same as Locking track.
+  However such behavior makes the Delayed Locking track GUI inaccssible.
+  (Railcraft/Railcraft#2065)
+- Un-crafting Cargo Cart gives back Trapped Chest, not Redstone Comparator.
+  (Railcraft/Railcraft#2066)
