@@ -23,6 +23,8 @@ As of now, it:
   (Railcraft/Railcraft#2093 - courtesy of ACGaming)
 - Provide alternative recipes for electrodes, allowing inputs to be in any column
   (3TUSK/RailwayDeoptWorker#1)
+- Fixes loots in minecarts being duplicated in mineshaft generation
+  (Railcraft/Railcraft#1810 - courtesy of jchung01)
 
 This mod works in Minecraft 1.12.2 ONLY.
 

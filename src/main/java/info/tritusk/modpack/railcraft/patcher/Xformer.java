@@ -35,6 +35,7 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.common.blocks.logic.IC2EmitterLogic": return tryFixIC2EmitterLogic(basicClass);
             case "mods.railcraft.common.blocks.machine.manipulator.TileRFLoader":
             case "mods.railcraft.common.blocks.machine.manipulator.TileRFUnloader": return tryReenableRFManipulatorGUI(basicClass);
+            case "mods.railcraft.common.carts.MinecartHooks": return tryFixCartInvDuplication(basicClass);
             case "mods.railcraft.common.gui.containers.RailcraftContainer": return tryPatchRailcraftContainer(basicClass);
             case "mods.railcraft.client.gui.GuiAnvil": return tryFixAnvilScreen(basicClass);
             case "mods.railcraft.client.gui.GuiTrackDelayedLocking":
@@ -46,6 +47,33 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.client.gui.GuiManipulatorCartRF": return tryDisableInvTitle(basicClass);
             default: return basicClass;
         }
+    }
+
+    private byte[] tryFixCartInvDuplication(byte[] basicClass) {
+        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
+                MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
+                if ("onMinecartSpawn".equals(name)) {
+                    mv = new MethodVisitor(this.api, mv) {
+                        final String entitySetDead = FMLDeobfuscatingRemapper.INSTANCE.mapMethodName("net/minecraft/entity/Entity", "func_70106_y", "()V");
+                        final String entitySetDropLoot = FMLDeobfuscatingRemapper.INSTANCE.mapMethodName("net/minecraft.entity/Entity", "func_184174_b", "(Z)V");
+                        @Override
+                        public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                            if (opcode == Opcodes.INVOKEVIRTUAL && entitySetDead.equals(name)) {
+                                super.visitInsn(Opcodes.DUP);
+                                super.visitInsn(Opcodes.ICONST_0);
+                                super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "net/minecraft/entity/Entity", entitySetDropLoot, "(Z)V", false);
+                            }
+                            super.visitMethodInsn(opcode, owner, name, desc, itf);
+                        }
+                    };
+                }
+                return mv;
+            }
+        }, 0);
+        return writer.toByteArray();
     }
 
     private static byte[] tryReenableRFManipulatorGUI(byte[] basicClass) {
