@@ -45,8 +45,35 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.client.gui.GuiTrackActivator": return tryMakingActivatorTrackGUIBetter(basicClass);
             case "mods.railcraft.client.gui.GuiTrackRouting": return tryFixGuiRouting(basicClass);
             case "mods.railcraft.client.gui.GuiManipulatorCartRF": return tryDisableInvTitle(basicClass);
+            case "mods.railcraft.common.modules.ModuleMagic$1": return tryReplaceFirestoneTicker(basicClass);
             default: return basicClass;
         }
+    }
+
+    private byte[] tryReplaceFirestoneTicker(byte[] basicClass) {
+        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
+                MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
+                if ("preInit".equals(name)) {
+                    mv = new MethodVisitor(this.api, mv) {
+                        @Override
+                        public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                            if ("net/minecraftforge/fml/common/eventhandler/EventBus".equals(owner) && "register".equals(name)) {
+                                opcode = Opcodes.INVOKESTATIC;
+                                owner = "info/tritusk/modpack/railcraft/patcher/AlternativeFirestoneTicker";
+                                name = "intercept";
+                                desc = "(Lnet/minecraftforge/fml/common/eventhandler/EventBus;Ljava/lang/Object;)V";
+                            }
+                            super.visitMethodInsn(opcode, owner, name, desc, itf);
+                        }
+                    };
+                }
+                return mv;
+            }
+        }, 0);
+        return writer.toByteArray();
     }
 
     private byte[] tryFixCartInvDuplication(byte[] basicClass) {
