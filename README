@@ -25,6 +25,8 @@ As of now, it:
   (3TUSK/RailwayDeoptWorker#1)
 - Fixes loots in minecarts being duplicated in mineshaft generation
   (Railcraft/Railcraft#1810 - courtesy of jchung01)
+- Automatically revives MystCraft dimensions that has Worldspike (aka World Anchor) in it after server restart
+  (3TUSK/RailwayDeoptWorker#6)
 
 This mod works in Minecraft 1.12.2 ONLY.
 
