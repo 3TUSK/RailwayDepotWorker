@@ -20,6 +20,7 @@ jobs:
             ~/.gradle/caches
             ~/.gradle/wrapper
           key: $${{ runner.os }}-gradle
+      # Must set to Java 8. ForgeGradle needs java/util/jar/Pack200.
       - name: Setup Java 8
         uses: actions/setup-java@v4
         with:
