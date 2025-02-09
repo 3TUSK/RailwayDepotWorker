@@ -35,6 +35,7 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.common.blocks.logic.IC2EmitterLogic": return tryFixIC2EmitterLogic(basicClass);
             case "mods.railcraft.common.blocks.machine.manipulator.TileRFLoader":
             case "mods.railcraft.common.blocks.machine.manipulator.TileRFUnloader": return tryReenableRFManipulatorGUI(basicClass);
+            case "mods.railcraft.common.carts.EntityCartHopper": return tryFixHopperCartDupe(basicClass);
             case "mods.railcraft.common.carts.MinecartHooks": return tryFixCartInvDuplication(basicClass);
             case "mods.railcraft.common.gui.containers.RailcraftContainer": return tryPatchRailcraftContainer(basicClass);
             case "mods.railcraft.client.gui.GuiAnvil": return tryFixAnvilScreen(basicClass);
@@ -48,6 +49,32 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.common.modules.ModuleMagic$1": return tryReplaceFirestoneTicker(basicClass);
             default: return basicClass;
         }
+    }
+
+    private byte[] tryFixHopperCartDupe(byte[] basicClass) {
+        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
+                MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
+                if ("transferAndNeedsCooldown".equals(name)) {
+                    mv = new MethodVisitor(this.api, mv) {
+                        @Override
+                        public void visitInsn(int opcode) {
+                            if (opcode == Opcodes.POP) {
+                                super.visitVarInsn(Opcodes.ALOAD, 1);
+                                super.visitMethodInsn(Opcodes.INVOKESTATIC, "info/tritusk/modpack/railcraft/patcher/hooks/HopperCartHooks", "handleItemRemainder",
+                                        "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/item/EntityItem;)V", false);
+                                return;
+                            }
+                            super.visitInsn(opcode);
+                        }
+                    };
+                }
+                return mv;
+            }
+        }, 0);
+        return writer.toByteArray();
     }
 
     private byte[] tryReplaceFirestoneTicker(byte[] basicClass) {
