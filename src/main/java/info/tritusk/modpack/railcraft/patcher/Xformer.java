@@ -38,6 +38,7 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.common.carts.EntityCartHopper": return tryFixHopperCartDupe(basicClass);
             case "mods.railcraft.common.carts.MinecartHooks": return tryFixCartInvDuplication(basicClass);
             case "mods.railcraft.common.gui.containers.RailcraftContainer": return tryPatchRailcraftContainer(basicClass);
+            case "mods.railcraft.client.core.ClientProxy": return tryFixFluidTextureWithThirdPartyMods(basicClass);
             case "mods.railcraft.client.gui.GuiAnvil": return tryFixAnvilScreen(basicClass);
             case "mods.railcraft.client.gui.GuiTrackDelayedLocking":
             case "mods.railcraft.client.gui.GuiTrackEmbarking":
@@ -49,6 +50,33 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.common.modules.ModuleMagic$1": return tryReplaceFirestoneTicker(basicClass);
             default: return basicClass;
         }
+    }
+
+    private byte[] tryFixFluidTextureWithThirdPartyMods(byte[] basicClass) {
+        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
+                MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
+                if ("initializeClient".equals(name)) {
+                    mv = new MethodVisitor(this.api, mv) {
+                        private int registerRefCount = 0;
+                        @Override
+                        public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                            if ("net/minecraftforge/fml/common/eventhandler/EventBus".equals(owner) && "register".equals(name) && ++this.registerRefCount == 3) {
+                                opcode = Opcodes.INVOKESTATIC;
+                                owner = "info/tritusk/modpack/railcraft/patcher/hooks/FluidModelRendererHook";
+                                name = "intercept";
+                                desc = "(Lnet/minecraftforge/fml/common/eventhandler/EventBus;Ljava/lang/Object;)V";
+                            }
+                            super.visitMethodInsn(opcode, owner, name, desc, itf);
+                        }
+                    };
+                }
+                return mv;
+            }
+        }, 0);
+        return writer.toByteArray();
     }
 
     private byte[] tryFixHopperCartDupe(byte[] basicClass) {

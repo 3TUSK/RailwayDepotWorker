@@ -44,6 +44,12 @@ repositories {
 dependencies {
     implementation group: 'mezz.jei', name: 'jei_1.12.2', version: '4.15.0.278'
 
+    // TiC
+    implementation group: 'curse.maven', name: 'mantle-74924', version: '2713386'
+    implementation group: 'curse.maven', name: 'tinkers-construct-74072', version: '2510691'
+    // ExU
+    implementation group: 'curse.maven', name: 'extra-utilities-225561', version: '2678374'
+
     deobfCompile group: 'curse.maven', name: 'railcraft-51195', version: '3853491'
 }
 
