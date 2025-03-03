@@ -26,6 +26,7 @@ public class ModContainer extends DummyModContainer {
 
     public static boolean useAlternativeFirestoneTicker = true;
     public static boolean disableFluidTextureFix = true;
+    public static boolean useAlternativeFluidTextureFix = true;
 
     public ModContainer() {
         super(new ModMetadata());
@@ -62,9 +63,14 @@ public class ModContainer extends DummyModContainer {
         useAlternativeFirestoneTicker = prop.getBoolean();
 
         prop = config.get("general", "disableFluidTextureFix", true,
-                "It seems that Railcraft was trying to \"fix\" fluids from other mods that forgot to register the texture into atlas. \nHowever, this is also known to break some unusual fluid textures, most notably Molten Demon Metal from ExtraUtils2 when Tinnkers Construct is also installed. \nThis option lets you to control whether you want this \"fix\" or not.");
+                "It seems that Railcraft was trying to \"fix\" fluids from other mods that forgot to register the texture into atlas. \nHowever, this is known to break some unusual fluid textures, most notably Molten Demon Metal from ExtraUtils2 when Tinkers Construct is also installed. \nThis option lets you to control whether you want this \"fix\" or not.");
         prop.setRequiresMcRestart(true);
         disableFluidTextureFix = prop.getBoolean();
+
+        prop = config.get("general", "useAlternativeFluidTextureFix", true,
+                "If Fluid Texture Fix is used, set this to true will use an alternative version of the fix, which is compatible with ExtraUtils2.");
+        prop.setRequiresMcRestart(true);
+        useAlternativeFluidTextureFix = prop.getBoolean();
 
         if (config.hasChanged()) {
             config.save();
