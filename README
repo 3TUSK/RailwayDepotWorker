@@ -21,12 +21,16 @@ As of now, it:
   (Railcraft/Railcraft#2040 - courtesy of Speiger)
 - Fixes tooltips are not shown in Steel Anvil GUI
   (Railcraft/Railcraft#2093 - courtesy of ACGaming)
-- Provide alternative recipes for electrodes, allowing inputs to be in any column
+- Provides alternative recipes for electrodes, allowing inputs to be in any column
   (3TUSK/RailwayDeoptWorker#1)
 - Fixes loots in minecarts being duplicated in mineshaft generation
   (Railcraft/Railcraft#1810 - courtesy of jchung01)
 - Automatically revives MystCraft dimensions that has Worldspike (aka World Anchor) in it after server restart
   (3TUSK/RailwayDeoptWorker#6)
+- Fixes Hopper Cart duplicating items
+  (3TUSK/RailwayDeoptWorker#9)
+- EXPERIMENTAL: provides an option to not register texture for other fluids, solving the ExU2 missing fluid texture issue
+  (3TUSK/RailwayDeoptWorker#10, Kanzaji/XU2-Patcher#1)
 
 This mod works in Minecraft 1.12.2 ONLY.
 
