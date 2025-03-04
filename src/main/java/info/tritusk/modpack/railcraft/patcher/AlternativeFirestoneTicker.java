@@ -1,8 +1,8 @@
 package info.tritusk.modpack.railcraft.patcher;
 
 import mods.railcraft.common.items.firestone.FirestoneTools;
-import mods.railcraft.common.util.inventory.InventoryComposite;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
 import net.minecraftforge.fml.common.eventhandler.EventBus;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
@@ -26,10 +26,17 @@ public final class AlternativeFirestoneTicker {
         if ((player.world.getTotalWorldTime() + player.getEntityId()) % 4 != 0) {
             return;
         }
-        if (player.openContainer != player.inventoryContainer) {
-            return;
+        if (player.openContainer == player.inventoryContainer) {
+            for (ItemStack itemStack : player.inventory.mainInventory) {
+                FirestoneTools.trySpawnFire(player.world, player.getPosition(), itemStack, player);
+            }
+            for (ItemStack itemStack : player.inventory.armorInventory) {
+                FirestoneTools.trySpawnFire(player.world, player.getPosition(), itemStack, player);
+            }
+            for (ItemStack itemStack : player.inventory.offHandInventory) {
+                FirestoneTools.trySpawnFire(player.world, player.getPosition(), itemStack, player);
+            }
         }
-        InventoryComposite.of(player).streamStacks().forEach(stack -> FirestoneTools.trySpawnFire(player.world, player.getPosition(), stack, player));
     }
 
     public static void intercept(EventBus bus, Object originalEventListener) {
