@@ -29,8 +29,10 @@ As of now, it:
   (3TUSK/RailwayDeoptWorker#6)
 - Fixes Hopper Cart duplicating items
   (3TUSK/RailwayDeoptWorker#9)
-- EXPERIMENTAL: provides an option to not register texture for other fluids, solving the ExU2 missing fluid texture issue
+- Provides config options to solve the ExU2 missing fluid texture issue
   (3TUSK/RailwayDeoptWorker#10, Kanzaji/XU2-Patcher#1)
+- Dismantling Cargo Cart now gives back Redstone Comparator, which is used in crafting.
+  (Railcraft/Railcraft#2066)
 
 This mod works in Minecraft 1.12.2 ONLY.
 
@@ -47,5 +49,8 @@ TODO
   Current behavior is switching mode, i.e. same as Locking track.
   However such behavior makes the Delayed Locking track GUI inaccssible.
   (Railcraft/Railcraft#2065)
-- Un-crafting Cargo Cart gives back Trapped Chest, not Redstone Comparator.
-  (Railcraft/Railcraft#2066)
+- TESRManipulatorFluid has space for optimization; we can use FastTESR for it.
+  - Fluid model can be cached; current behavior is to create new model on every frame.
+- Call EntityDataManager.defineId in-place.
+  - Log claims "[i]ts just Forge being nosy"; however, under rare edge cases it can signal real issue.
+  - Does not appear to be a serious issue, though.

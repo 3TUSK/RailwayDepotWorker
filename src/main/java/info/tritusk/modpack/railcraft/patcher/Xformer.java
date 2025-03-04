@@ -37,6 +37,7 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.common.blocks.machine.manipulator.TileRFUnloader": return tryReenableRFManipulatorGUI(basicClass);
             case "mods.railcraft.common.carts.EntityCartHopper": return tryFixHopperCartDupe(basicClass);
             case "mods.railcraft.common.carts.MinecartHooks": return tryFixCartInvDuplication(basicClass);
+            case "mods.railcraft.common.carts.RailcraftCarts": return tryFixCargoCartDismantleRecipe(basicClass);
             case "mods.railcraft.common.gui.containers.RailcraftContainer": return tryPatchRailcraftContainer(basicClass);
             case "mods.railcraft.client.core.ClientProxy": return tryFixFluidTextureWithThirdPartyMods(basicClass);
             case "mods.railcraft.client.gui.GuiAnvil": return tryFixAnvilScreen(basicClass);
@@ -50,6 +51,44 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.common.modules.ModuleMagic$1": return tryReplaceFirestoneTicker(basicClass);
             default: return basicClass;
         }
+    }
+
+    private byte[] tryFixCargoCartDismantleRecipe(byte[] basicClass) {
+        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
+                MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
+                if ("<clinit>".equals(name)) {
+                    mv = new MethodVisitor(this.api, mv) {
+                        private final String TRAPPED_CHEST = FMLDeobfuscatingRemapper.INSTANCE.mapFieldName("net/minecraft/init/Blocks", "field_150447_bR", "Lnet/minecraft/block/Block;");
+                        private boolean foundTrappedChest = false;
+
+                        @Override
+                        public void visitFieldInsn(int opcode, String owner, String name, String desc) {
+                            if (TRAPPED_CHEST.equals(name)) {
+                                this.foundTrappedChest = true;
+                            }
+                            super.visitFieldInsn(opcode, owner, name, desc);
+                        }
+
+                        @Override
+                        public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                            if ("from".equals(name) && this.foundTrappedChest) {
+                                opcode = Opcodes.INVOKESTATIC;
+                                owner = "info/tritusk/modpack/railcraft/patcher/Recipes";
+                                name = "cargoCartDismantleRemainder";
+                                desc = "(Lnet/minecraft/block/Block;)Ljava/util/function/Supplier;";
+                                this.foundTrappedChest = false;
+                            }
+                            super.visitMethodInsn(opcode, owner, name, desc, itf);
+                        }
+                    };
+                }
+                return mv;
+            }
+        }, 0);
+        return writer.toByteArray();
     }
 
     private byte[] tryFixFluidTextureWithThirdPartyMods(byte[] basicClass) {

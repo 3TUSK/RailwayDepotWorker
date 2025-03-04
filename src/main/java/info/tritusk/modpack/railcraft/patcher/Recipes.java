@@ -2,7 +2,11 @@ package info.tritusk.modpack.railcraft.patcher;
 
 import mods.railcraft.api.crafting.Crafters;
 import mods.railcraft.common.items.RailcraftItems;
+import net.minecraft.block.Block;
 import net.minecraft.init.Items;
+import net.minecraft.item.ItemStack;
+
+import java.util.function.Supplier;
 
 import static mods.railcraft.common.items.ItemCharge.EnumCharge.ELECTRODE_CARBON;
 import static mods.railcraft.common.items.ItemCharge.EnumCharge.ELECTRODE_IRON;
@@ -11,6 +15,10 @@ import static mods.railcraft.common.items.ItemCharge.EnumCharge.ELECTRODE_SILVER
 import static mods.railcraft.common.items.ItemCharge.EnumCharge.ELECTRODE_ZINC;
 
 public final class Recipes {
+
+    public static Supplier<ItemStack> cargoCartDismantleRemainder(Block original) {
+        return () -> new ItemStack(Items.COMPARATOR);
+    }
 
     public static void addExtraRecipes() {
         Crafters.rollingMachine()
