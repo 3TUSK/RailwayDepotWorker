@@ -20,6 +20,7 @@ import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
 import java.util.Collections;
+import java.util.function.BiFunction;
 
 public class Xformer implements IClassTransformer {
     @Override
@@ -54,147 +55,92 @@ public class Xformer implements IClassTransformer {
     }
 
     private byte[] tryFixCargoCartDismantleRecipe(byte[] basicClass) {
-        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
-        new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
+        return patch(basicClass, "<clinit>", (api, mv) -> new MethodVisitor(api, mv) {
+            private final String TRAPPED_CHEST = FMLDeobfuscatingRemapper.INSTANCE.mapFieldName("net/minecraft/init/Blocks", "field_150447_bR", "Lnet/minecraft/block/Block;");
+            private boolean foundTrappedChest = false;
+
             @Override
-            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
-                MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
-                if ("<clinit>".equals(name)) {
-                    mv = new MethodVisitor(this.api, mv) {
-                        private final String TRAPPED_CHEST = FMLDeobfuscatingRemapper.INSTANCE.mapFieldName("net/minecraft/init/Blocks", "field_150447_bR", "Lnet/minecraft/block/Block;");
-                        private boolean foundTrappedChest = false;
-
-                        @Override
-                        public void visitFieldInsn(int opcode, String owner, String name, String desc) {
-                            if (TRAPPED_CHEST.equals(name)) {
-                                this.foundTrappedChest = true;
-                            }
-                            super.visitFieldInsn(opcode, owner, name, desc);
-                        }
-
-                        @Override
-                        public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
-                            if ("from".equals(name) && this.foundTrappedChest) {
-                                opcode = Opcodes.INVOKESTATIC;
-                                owner = "info/tritusk/modpack/railcraft/patcher/Recipes";
-                                name = "cargoCartDismantleRemainder";
-                                desc = "(Lnet/minecraft/block/Block;)Ljava/util/function/Supplier;";
-                                this.foundTrappedChest = false;
-                            }
-                            super.visitMethodInsn(opcode, owner, name, desc, itf);
-                        }
-                    };
+            public void visitFieldInsn(int opcode, String owner, String name, String desc) {
+                if (TRAPPED_CHEST.equals(name)) {
+                    this.foundTrappedChest = true;
                 }
-                return mv;
+                super.visitFieldInsn(opcode, owner, name, desc);
             }
-        }, 0);
-        return writer.toByteArray();
+
+            @Override
+            public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                if ("from".equals(name) && this.foundTrappedChest) {
+                    opcode = Opcodes.INVOKESTATIC;
+                    owner = "info/tritusk/modpack/railcraft/patcher/Recipes";
+                    name = "cargoCartDismantleRemainder";
+                    desc = "(Lnet/minecraft/block/Block;)Ljava/util/function/Supplier;";
+                    this.foundTrappedChest = false;
+                }
+                super.visitMethodInsn(opcode, owner, name, desc, itf);
+            }
+        });
     }
 
     private byte[] tryFixFluidTextureWithThirdPartyMods(byte[] basicClass) {
-        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
-        new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
+        return patch(basicClass, "initializeClient", (api, mv) -> new MethodVisitor(api, mv) {
+            private int registerRefCount = 0;
             @Override
-            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
-                MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
-                if ("initializeClient".equals(name)) {
-                    mv = new MethodVisitor(this.api, mv) {
-                        private int registerRefCount = 0;
-                        @Override
-                        public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
-                            if ("net/minecraftforge/fml/common/eventhandler/EventBus".equals(owner) && "register".equals(name) && ++this.registerRefCount == 3) {
-                                opcode = Opcodes.INVOKESTATIC;
-                                owner = "info/tritusk/modpack/railcraft/patcher/hooks/FluidModelRendererHook";
-                                name = "intercept";
-                                desc = "(Lnet/minecraftforge/fml/common/eventhandler/EventBus;Ljava/lang/Object;)V";
-                            }
-                            super.visitMethodInsn(opcode, owner, name, desc, itf);
-                        }
-                    };
+            public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                if ("net/minecraftforge/fml/common/eventhandler/EventBus".equals(owner) && "register".equals(name) && ++this.registerRefCount == 3) {
+                    opcode = Opcodes.INVOKESTATIC;
+                    owner = "info/tritusk/modpack/railcraft/patcher/hooks/FluidModelRendererHook";
+                    name = "intercept";
+                    desc = "(Lnet/minecraftforge/fml/common/eventhandler/EventBus;Ljava/lang/Object;)V";
                 }
-                return mv;
+                super.visitMethodInsn(opcode, owner, name, desc, itf);
             }
-        }, 0);
-        return writer.toByteArray();
+        });
     }
 
     private byte[] tryFixHopperCartDupe(byte[] basicClass) {
-        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
-        new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
+        return patch(basicClass, "transferAndNeedsCooldown", (api, mv) -> new MethodVisitor(api, mv) {
             @Override
-            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
-                MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
-                if ("transferAndNeedsCooldown".equals(name)) {
-                    mv = new MethodVisitor(this.api, mv) {
-                        @Override
-                        public void visitInsn(int opcode) {
-                            if (opcode == Opcodes.POP) {
-                                super.visitVarInsn(Opcodes.ALOAD, 1);
-                                super.visitMethodInsn(Opcodes.INVOKESTATIC, "info/tritusk/modpack/railcraft/patcher/hooks/HopperCartHooks", "handleItemRemainder",
-                                        "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/item/EntityItem;)V", false);
-                                return;
-                            }
-                            super.visitInsn(opcode);
-                        }
-                    };
+            public void visitInsn(int opcode) {
+                if (opcode == Opcodes.POP) {
+                    super.visitVarInsn(Opcodes.ALOAD, 1);
+                    super.visitMethodInsn(Opcodes.INVOKESTATIC, "info/tritusk/modpack/railcraft/patcher/hooks/HopperCartHooks", "handleItemRemainder",
+                            "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/item/EntityItem;)V", false);
+                    return;
                 }
-                return mv;
+                super.visitInsn(opcode);
             }
-        }, 0);
-        return writer.toByteArray();
+        });
     }
 
     private byte[] tryReplaceFirestoneTicker(byte[] basicClass) {
-        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
-        new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
+        return patch(basicClass, "preInit", (api, mv) -> new MethodVisitor(api, mv) {
             @Override
-            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
-                MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
-                if ("preInit".equals(name)) {
-                    mv = new MethodVisitor(this.api, mv) {
-                        @Override
-                        public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
-                            if ("net/minecraftforge/fml/common/eventhandler/EventBus".equals(owner) && "register".equals(name)) {
-                                opcode = Opcodes.INVOKESTATIC;
-                                owner = "info/tritusk/modpack/railcraft/patcher/AlternativeFirestoneTicker";
-                                name = "intercept";
-                                desc = "(Lnet/minecraftforge/fml/common/eventhandler/EventBus;Ljava/lang/Object;)V";
-                            }
-                            super.visitMethodInsn(opcode, owner, name, desc, itf);
-                        }
-                    };
+            public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                if ("net/minecraftforge/fml/common/eventhandler/EventBus".equals(owner) && "register".equals(name)) {
+                    opcode = Opcodes.INVOKESTATIC;
+                    owner = "info/tritusk/modpack/railcraft/patcher/AlternativeFirestoneTicker";
+                    name = "intercept";
+                    desc = "(Lnet/minecraftforge/fml/common/eventhandler/EventBus;Ljava/lang/Object;)V";
                 }
-                return mv;
+                super.visitMethodInsn(opcode, owner, name, desc, itf);
             }
-        }, 0);
-        return writer.toByteArray();
+        });
     }
 
     private byte[] tryFixCartInvDuplication(byte[] basicClass) {
-        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
-        new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
+        return patch(basicClass, "onMinecartSpawn", (api, mv) -> new MethodVisitor(api, mv) {
+            final String entitySetDead = FMLDeobfuscatingRemapper.INSTANCE.mapMethodName("net/minecraft/entity/Entity", "func_70106_y", "()V");
+            final String entitySetDropLoot = FMLDeobfuscatingRemapper.INSTANCE.mapMethodName("net/minecraft.entity/Entity", "func_184174_b", "(Z)V");
             @Override
-            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
-                MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
-                if ("onMinecartSpawn".equals(name)) {
-                    mv = new MethodVisitor(this.api, mv) {
-                        final String entitySetDead = FMLDeobfuscatingRemapper.INSTANCE.mapMethodName("net/minecraft/entity/Entity", "func_70106_y", "()V");
-                        final String entitySetDropLoot = FMLDeobfuscatingRemapper.INSTANCE.mapMethodName("net/minecraft.entity/Entity", "func_184174_b", "(Z)V");
-                        @Override
-                        public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
-                            if (opcode == Opcodes.INVOKEVIRTUAL && entitySetDead.equals(name)) {
-                                super.visitInsn(Opcodes.DUP);
-                                super.visitInsn(Opcodes.ICONST_0);
-                                super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "net/minecraft/entity/Entity", entitySetDropLoot, "(Z)V", false);
-                            }
-                            super.visitMethodInsn(opcode, owner, name, desc, itf);
-                        }
-                    };
+            public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                if (opcode == Opcodes.INVOKEVIRTUAL && entitySetDead.equals(name)) {
+                    super.visitInsn(Opcodes.DUP);
+                    super.visitInsn(Opcodes.ICONST_0);
+                    super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "net/minecraft/entity/Entity", entitySetDropLoot, "(Z)V", false);
                 }
-                return mv;
+                super.visitMethodInsn(opcode, owner, name, desc, itf);
             }
-        }, 0);
-        return writer.toByteArray();
+        });
     }
 
     private static byte[] tryReenableRFManipulatorGUI(byte[] basicClass) {
@@ -570,26 +516,30 @@ public class Xformer implements IClassTransformer {
     }
 
     private static byte[] tryFixRollingRecipeDisplayInJEI(byte[] basicClass) {
+        return patch(basicClass, "setRecipe", (api, mv) -> new MethodVisitor(Opcodes.ASM5, mv) {
+            @Override
+            public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                if (opcode == Opcodes.INVOKEINTERFACE && "setInputs".equals(name)) {
+                    super.visitVarInsn(Opcodes.ALOAD, 2);
+                    opcode = Opcodes.INVOKESTATIC;
+                    owner = "info/tritusk/modpack/railcraft/patcher/JEIHook";
+                    name = "setInputs0";
+                    desc = "(Lmezz/jei/api/gui/ICraftingGridHelper;Lmezz/jei/api/gui/IGuiItemStackGroup;Ljava/util/List;Lmezz/jei/api/recipe/IRecipeWrapper;)V";
+                    itf = false;
+                }
+                super.visitMethodInsn(opcode, owner, name, desc, itf);
+            }
+        });
+    }
+
+    private static byte[] patch(byte[] basicClass, String methodToPatch, BiFunction<Integer, MethodVisitor, MethodVisitor> patcher) {
         ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
         new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
             @Override
             public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
                 MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
-                if ("setRecipe".equals(name)) {
-                    mv = new MethodVisitor(Opcodes.ASM5, mv) {
-                        @Override
-                        public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
-                            if (opcode == Opcodes.INVOKEINTERFACE && "setInputs".equals(name)) {
-                                super.visitVarInsn(Opcodes.ALOAD, 2);
-                                opcode = Opcodes.INVOKESTATIC;
-                                owner = "info/tritusk/modpack/railcraft/patcher/JEIHook";
-                                name = "setInputs0";
-                                desc = "(Lmezz/jei/api/gui/ICraftingGridHelper;Lmezz/jei/api/gui/IGuiItemStackGroup;Ljava/util/List;Lmezz/jei/api/recipe/IRecipeWrapper;)V";
-                                itf = false;
-                            }
-                            super.visitMethodInsn(opcode, owner, name, desc, itf);
-                        }
-                    };
+                if (name.equals(methodToPatch)) {
+                    mv = patcher.apply(this.api, mv);
                 }
                 return mv;
             }
