@@ -19,7 +19,6 @@ import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
-import java.util.Collections;
 import java.util.function.BiFunction;
 
 public class Xformer implements IClassTransformer {
@@ -433,41 +432,22 @@ public class Xformer implements IClassTransformer {
     }
 
     private static byte[] tryPatchingTileRailcraft(byte[] basicClass) {
-        ClassNode node = new ClassNode();
-        new ClassReader(basicClass).accept(node, 0);
-
-        MethodNode markBlockForUpdateMethod = null;
-        for (MethodNode m : node.methods) {
-            if ("markBlockForUpdate".equals(m.name)) {
-                markBlockForUpdateMethod = m;
-                break;
+        return patch(basicClass, "markBlockForUpdate", (api, mv) -> new MethodVisitor(api, mv) {
+            @Override
+            public void visitCode() {
+                // Remove the entire method body, replacing with a stub.
+                // The original method calls World::notifyBlockUpdate with flag 8, which forces Minecraft
+                // to rebuild render chunk (a 16 * 16 * 16 box) on main client thread.
+                // By not calling notifyBlockUpdate, it can avoid unnecessary render chunk re-building.
+                // Changing flag 8 to 0 will make the render chunk rebuilding happen on a separate thread,
+                // but the problem is that the re-rendering still happens.
+                // In fact, this method is called without a block state change. So rebuilding the render
+                // chunk does not lead to a visual difference. Thus, it is better to just avoid the update
+                // altogether.
+                // TODO this method may be called on server; we need to access its impact and restore correct behavior if there is desync.
+                super.visitInsn(Opcodes.RETURN);
             }
-        }
-
-        if (markBlockForUpdateMethod == null) {
-            // System.out.println("Did not find method, skipping");
-            return basicClass;
-        }
-
-        // Remove the entire method body, replacing with a stub.
-        // The original method calls World::notifyBlockUpdate with flag 8, which forces Minecraft
-        // to rebuild render chunk (a 16 * 16 * 16 box) on main client thread.
-        // By not calling notifyBlockUpdate, it can avoid unnecessary render chunk re-building.
-        // Changing flag 8 to 0 will make the render chunk rebuilding happen on a separate thread,
-        // but the problem is that the re-rendering still happens.
-        // In fact, this method is called without a block state change. So rebuilding the render
-        // chunk does not lead to a visual difference. Thus, it is better to just avoid the update
-        // altogether.
-        // TODO this method may be called on server; we need to access its impact and restore correct behavior if there is desync.
-        InsnList instructions = new InsnList();
-        instructions.add(new InsnNode(Opcodes.RETURN));
-        markBlockForUpdateMethod.instructions = instructions;
-        markBlockForUpdateMethod.localVariables = Collections.emptyList();
-        markBlockForUpdateMethod.visitMaxs(0, 1);
-
-        ClassWriter writer = new ClassWriter(0);
-        node.accept(writer);
-        return writer.toByteArray();
+        });
     }
 
     private static byte[] tryFixRollingRecipeDisplayInJEI(byte[] basicClass) {
