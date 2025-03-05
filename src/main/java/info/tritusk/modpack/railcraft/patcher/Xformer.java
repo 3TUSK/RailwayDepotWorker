@@ -144,49 +144,38 @@ public class Xformer implements IClassTransformer {
     }
 
     private static byte[] tryReenableRFManipulatorGUI(byte[] basicClass) {
-        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
-        new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
+        return patch(basicClass, "openGui", (api, mv) -> new MethodVisitor(api, mv) {
+
+            final String teWorldHolder = FMLDeobfuscatingRemapper.INSTANCE.mapFieldName("net/minecraft/tileentity/TileEntity", "field_145850_b", "Lnet/minecraft/world/world;");
+
+            private boolean openGuiCall = false;
+
             @Override
-            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
-                MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
-                if ("openGui".equals(name)) {
-                    mv = new MethodVisitor(Opcodes.ASM5, mv) {
-
-                        final String teWorldHolder = FMLDeobfuscatingRemapper.INSTANCE.mapFieldName("net/minecraft/tileentity/TileEntity", "field_145850_b", "Lnet/minecraft/world/world;");
-
-                        private boolean openGuiCall = false;
-
-                        @Override
-                        public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
-                            if ("mods/railcraft/common/gui/GuiHandler".equals(owner) && "openGui".equals(name)) {
-                                this.openGuiCall = true;
-                            }
-                            super.visitMethodInsn(opcode, owner, name, desc, itf);
-                        }
-
-                        @Override
-                        public void visitInsn(int opcode) {
-                            if (opcode == Opcodes.IRETURN && !this.openGuiCall) {
-                                super.visitFieldInsn(Opcodes.GETSTATIC, "mods/railcraft/common/gui/EnumGui", "MANIPULATOR_RF", "Lmods/railcraft/common/gui/EnumGui;");
-                                super.visitVarInsn(Opcodes.ALOAD, 1);
-                                super.visitVarInsn(Opcodes.ALOAD, 0);
-                                super.visitFieldInsn(Opcodes.GETFIELD, "mods/railcraft/common/blocks/machine/manipulator/TileRFManipulator", this.teWorldHolder, "Lnet/minecraft/world/World;");
-                                super.visitVarInsn(Opcodes.ALOAD, 0);
-                                super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "mods/railcraft/common/blocks/machine/manipulator/TileRFManipulator", "getX", "()I", false);
-                                super.visitVarInsn(Opcodes.ALOAD, 0);
-                                super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "mods/railcraft/common/blocks/machine/manipulator/TileRFManipulator", "getY", "()I", false);
-                                super.visitVarInsn(Opcodes.ALOAD, 0);
-                                super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "mods/railcraft/common/blocks/machine/manipulator/TileRFManipulator", "getZ", "()I", false);
-                                super.visitMethodInsn(Opcodes.INVOKESTATIC, "mods/railcraft/common/gui/GuiHandler", "openGui", "(Lmods/railcraft/common/gui/EnumGui;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/world/World;III)V", false);
-                            }
-                            super.visitInsn(opcode);
-                        }
-                    };
+            public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                if ("mods/railcraft/common/gui/GuiHandler".equals(owner) && "openGui".equals(name)) {
+                    this.openGuiCall = true;
                 }
-                return mv;
+                super.visitMethodInsn(opcode, owner, name, desc, itf);
             }
-        }, 0);
-        return writer.toByteArray();
+
+            @Override
+            public void visitInsn(int opcode) {
+                if (opcode == Opcodes.IRETURN && !this.openGuiCall) {
+                    super.visitFieldInsn(Opcodes.GETSTATIC, "mods/railcraft/common/gui/EnumGui", "MANIPULATOR_RF", "Lmods/railcraft/common/gui/EnumGui;");
+                    super.visitVarInsn(Opcodes.ALOAD, 1);
+                    super.visitVarInsn(Opcodes.ALOAD, 0);
+                    super.visitFieldInsn(Opcodes.GETFIELD, "mods/railcraft/common/blocks/machine/manipulator/TileRFManipulator", this.teWorldHolder, "Lnet/minecraft/world/World;");
+                    super.visitVarInsn(Opcodes.ALOAD, 0);
+                    super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "mods/railcraft/common/blocks/machine/manipulator/TileRFManipulator", "getX", "()I", false);
+                    super.visitVarInsn(Opcodes.ALOAD, 0);
+                    super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "mods/railcraft/common/blocks/machine/manipulator/TileRFManipulator", "getY", "()I", false);
+                    super.visitVarInsn(Opcodes.ALOAD, 0);
+                    super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "mods/railcraft/common/blocks/machine/manipulator/TileRFManipulator", "getZ", "()I", false);
+                    super.visitMethodInsn(Opcodes.INVOKESTATIC, "mods/railcraft/common/gui/GuiHandler", "openGui", "(Lmods/railcraft/common/gui/EnumGui;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/world/World;III)V", false);
+                }
+                super.visitInsn(opcode);
+            }
+        });
     }
 
     private static byte[] tryFixIC2EmitterLogic(byte[] basicClass) {
@@ -235,77 +224,54 @@ public class Xformer implements IClassTransformer {
     }
 
     private static byte[] tryFixAnvilScreen(byte[] basicClass) {
+        final String targetMethodName = FMLDeobfuscatingRemapper.INSTANCE.mapMethodName(
+                "net/minecraft/client/gui/inventory/GuiContainer", "func_73863_a", "(IIF)V");
+        return patch(basicClass, targetMethodName, (api, mv) -> new MethodVisitor(api, mv) {
+            final String tooltipMethod = FMLDeobfuscatingRemapper.INSTANCE.mapMethodName(
+                    "net/minecraft/client/gui/inventory/GuiContainer", "func_191948_b", "(II)V"
+            );
 
-        ClassWriter writer = new ClassWriter(0);
-        new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
-            final String targetMethodName = FMLDeobfuscatingRemapper.INSTANCE.mapMethodName(
-                    "net/minecraft/client/gui/inventory/GuiContainer", "func_73863_a", "(IIF)V");
+            private boolean foundFix = false;
+
             @Override
-            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
-                MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
-                if (targetMethodName.equals(name)) {
-                    mv = new MethodVisitor(Opcodes.ASM5, mv) {
-                        final String tooltipMethod = FMLDeobfuscatingRemapper.INSTANCE.mapMethodName(
-                                "net/minecraft/client/gui/inventory/GuiContainer", "func_191948_b", "(II)V"
-                        );
-
-                        private boolean foundFix = false;
-
-                        @Override
-                        public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
-                            // Try detecting the presence of ACGaming's fix. If found we will just skip patching.
-                            if (name.equals(tooltipMethod)) {
-                                this.foundFix = true;
-                            }
-                            super.visitMethodInsn(opcode, owner, name, desc, itf);
-                        }
-
-                        @Override
-                        public void visitIntInsn(int opcode, int operand) {
-                            // 2896 is GL11.GL_LIGHTING. We need extra call there.
-                            if (opcode == Opcodes.SIPUSH && operand == 2896 && !this.foundFix) {
-                                super.visitVarInsn(Opcodes.ALOAD, 0);
-                                super.visitIntInsn(Opcodes.ILOAD, 1);
-                                super.visitIntInsn(Opcodes.ILOAD, 2);
-                                super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "net/minecraft/client/gui/inventory/GuiContainer", tooltipMethod, "(II)V", false);
-                            }
-                            super.visitIntInsn(opcode, operand);
-                        }
-                    };
+            public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                // Try detecting the presence of ACGaming's fix. If found we will just skip patching.
+                if (name.equals(tooltipMethod)) {
+                    this.foundFix = true;
                 }
-                return mv;
+                super.visitMethodInsn(opcode, owner, name, desc, itf);
             }
-        }, 0);
-        return writer.toByteArray();
+
+            @Override
+            public void visitIntInsn(int opcode, int operand) {
+                // 2896 is GL11.GL_LIGHTING. We need extra call there.
+                if (opcode == Opcodes.SIPUSH && operand == 2896 && !this.foundFix) {
+                    super.visitVarInsn(Opcodes.ALOAD, 0);
+                    super.visitIntInsn(Opcodes.ILOAD, 1);
+                    super.visitIntInsn(Opcodes.ILOAD, 2);
+                    super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "net/minecraft/client/gui/inventory/GuiContainer", tooltipMethod, "(II)V", false);
+                }
+                super.visitIntInsn(opcode, operand);
+            }
+        });
     }
 
     private byte[] tryMakingActivatorTrackGUIBetter(byte[] basicClass) {
-        ClassWriter writer = new ClassWriter(0);
-        new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
-            final String targetMethodName = FMLDeobfuscatingRemapper.INSTANCE.mapMethodName(
-                    "net/minecraft/client/gui/inventory/GuiContainer", "func_146979_b", "(II)V");
+        final String targetMethodName = FMLDeobfuscatingRemapper.INSTANCE.mapMethodName(
+                "net/minecraft/client/gui/inventory/GuiContainer", "func_146979_b", "(II)V");
+        return patch(basicClass, targetMethodName, (api, mv) -> new MethodVisitor(api, mv) {
             @Override
-            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
-                MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
-                if (targetMethodName.equals(name)) {
-                    mv = new MethodVisitor(Opcodes.ASM5, mv) {
-                        @Override
-                        public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
-                            // Shift the cart filter label up, so that it is not outside the GUI
-                            if (opcode == Opcodes.INVOKESTATIC && "drawStringCenteredAtPos".equals(name)) {
-                                super.visitInsn(Opcodes.POP);
-                                super.visitInsn(Opcodes.POP);
-                                super.visitIntInsn(Opcodes.BIPUSH, 44);
-                                super.visitIntInsn(Opcodes.BIPUSH, 28);
-                            }
-                            super.visitMethodInsn(opcode, owner, name, desc, itf);
-                        }
-                    };
+            public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                // Shift the cart filter label up, so that it is not outside the GUI
+                if (opcode == Opcodes.INVOKESTATIC && "drawStringCenteredAtPos".equals(name)) {
+                    super.visitInsn(Opcodes.POP);
+                    super.visitInsn(Opcodes.POP);
+                    super.visitIntInsn(Opcodes.BIPUSH, 44);
+                    super.visitIntInsn(Opcodes.BIPUSH, 28);
                 }
-                return mv;
+                super.visitMethodInsn(opcode, owner, name, desc, itf);
             }
-        }, 0);
-        return writer.toByteArray();
+        });
     }
 
     private byte[] tryDisableInvTitle(byte[] basicClass) {
@@ -412,32 +378,21 @@ public class Xformer implements IClassTransformer {
     }
 
     private byte[] tryUseI18nForTrackGui(byte[] basicClass) {
-        ClassWriter writer = new ClassWriter(0);
-        new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
+        return patch(basicClass, "<init>", (api, mv) -> new MethodVisitor(api, mv) {
             final String targetMethodName = FMLDeobfuscatingRemapper.INSTANCE.mapMethodName(
                     "net/minecraft/world/IWorldNameable", "func_70005_c_", "()Ljava/lang/String;");
             @Override
-            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
-                MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
-                if ("<init>".equals(name)) {
-                    mv = new MethodVisitor(Opcodes.ASM5, mv) {
-                        @Override
-                        public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
-                            if (opcode == Opcodes.INVOKEVIRTUAL && targetMethodName.equals(name)) {
-                                opcode = Opcodes.INVOKESTATIC;
-                                owner = "info/tritusk/modpack/railcraft/patcher/I18nHook";
-                                name = "translateOutfittedTrackName";
-                                desc = "(Lmods/railcraft/common/blocks/tracks/outfitted/TileTrackOutfitted;)Ljava/lang/String;";
-                                itf = false;
-                            }
-                            super.visitMethodInsn(opcode, owner, name, desc, itf);
-                        }
-                    };
+            public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                if (opcode == Opcodes.INVOKEVIRTUAL && targetMethodName.equals(name)) {
+                    opcode = Opcodes.INVOKESTATIC;
+                    owner = "info/tritusk/modpack/railcraft/patcher/I18nHook";
+                    name = "translateOutfittedTrackName";
+                    desc = "(Lmods/railcraft/common/blocks/tracks/outfitted/TileTrackOutfitted;)Ljava/lang/String;";
+                    itf = false;
                 }
-                return mv;
+                super.visitMethodInsn(opcode, owner, name, desc, itf);
             }
-        }, 0);
-        return writer.toByteArray();
+        });
     }
 
     private byte[] tryExpandStackSizeLimitInWorldSpike(byte[] basicClass) {
@@ -516,7 +471,7 @@ public class Xformer implements IClassTransformer {
     }
 
     private static byte[] tryFixRollingRecipeDisplayInJEI(byte[] basicClass) {
-        return patch(basicClass, "setRecipe", (api, mv) -> new MethodVisitor(Opcodes.ASM5, mv) {
+        return patch(basicClass, "setRecipe", (api, mv) -> new MethodVisitor(api, mv) {
             @Override
             public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
                 if (opcode == Opcodes.INVOKEINTERFACE && "setInputs".equals(name)) {
