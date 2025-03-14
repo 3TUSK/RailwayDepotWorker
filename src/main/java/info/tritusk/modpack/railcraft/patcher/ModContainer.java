@@ -2,6 +2,11 @@ package info.tritusk.modpack.railcraft.patcher;
 
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
+import mods.railcraft.api.charge.IChargeBlock;
+import mods.railcraft.common.util.charge.ChargeNetwork;
+import net.minecraft.util.EnumFacing;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3i;
 import net.minecraft.world.World;
 import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.ForgeChunkManager;
@@ -12,6 +17,7 @@ import net.minecraftforge.fml.common.LoadController;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.ModMetadata;
 import net.minecraftforge.fml.common.event.FMLConstructionEvent;
+import net.minecraftforge.fml.common.event.FMLLoadCompleteEvent;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLServerStartedEvent;
 import net.minecraftforge.fml.common.versioning.ArtifactVersion;
@@ -19,7 +25,9 @@ import net.minecraftforge.fml.common.versioning.VersionParser;
 
 import java.io.File;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 public class ModContainer extends DummyModContainer {
@@ -80,6 +88,27 @@ public class ModContainer extends DummyModContainer {
     @Subscribe
     public void postInit(FMLPostInitializationEvent event) {
         Recipes.addExtraRecipes();
+    }
+
+    @Subscribe
+    public void completed(FMLLoadCompleteEvent event) {
+        // We repopulate this with BlockPos keys, to mitigate issues with mods that wish
+        // to implement a separate BlockPos#hashCode, which will silently break the map
+        // lookup.
+        // This should address the https://github.com/Railcraft/Railcraft/issues/2123.
+        // Being a crude band-aid fix, this should do the trick.
+        Map<Vec3i, EnumSet<IChargeBlock.ConnectType>> theMap = ChargeNetwork.CONNECTION_MAPS.get(IChargeBlock.ConnectType.BLOCK);
+        for (EnumFacing facing : EnumFacing.VALUES) {
+            // For vanilla Minecraft, there isn't a BlockPos#hashCode; calling hashCode on BlockPos
+            // will end up at Vec3i#hashCode.
+            // That means we won't populate anything if we have a vanilla BlockPos.
+            // Otherwise, we will add a "duplicated" key with the exact same value, to trick Railcraft
+            // to find the correct value.
+            BlockPos altKey = new BlockPos(facing.getDirectionVec());
+            if (!theMap.containsKey(altKey)) {
+                theMap.put(altKey, theMap.get(facing.getDirectionVec()));
+            }
+        }
     }
 
     /*
