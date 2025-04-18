@@ -8,16 +8,6 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.FieldInsnNode;
-import org.objectweb.asm.tree.FrameNode;
-import org.objectweb.asm.tree.InsnList;
-import org.objectweb.asm.tree.InsnNode;
-import org.objectweb.asm.tree.JumpInsnNode;
-import org.objectweb.asm.tree.LabelNode;
-import org.objectweb.asm.tree.MethodNode;
-import org.objectweb.asm.tree.VarInsnNode;
 
 import java.util.function.BiFunction;
 
@@ -184,42 +174,31 @@ public class Xformer implements IClassTransformer {
     }
 
     private static byte[] tryFixStructurePatternCheck(byte[] basicClass) {
-        ClassWriter writer = new ClassWriter(0);
-        new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
+        return patch(basicClass, "getPatternMarker", "(Lnet/minecraft/util/math/BlockPos;)C", (api, mv) -> new MethodVisitor(api, mv) {
+
+            private boolean foundFix = false;
+
             @Override
-            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
-                MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
-                if ("getPatternMarker".equals(name) && "(Lnet/minecraft/util/math/BlockPos;)C".equals(desc)) {
-                    mv = new MethodVisitor(Opcodes.ASM5, mv) {
-
-                        private boolean foundFix = false;
-
-                        @Override
-                        public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
-                            if (opcode == Opcodes.INVOKEVIRTUAL && "getPatternMarker".equals(name) && !foundFix) {
-                                opcode = Opcodes.INVOKESTATIC;
-                                owner = "info/tritusk/modpack/railcraft/patcher/StructurePatternHook";
-                                name = "getPatternMarker0";
-                                desc = "(Lmods/railcraft/common/blocks/structures/StructurePattern;III)C";
-                                itf = false;
-                            }
-                            super.visitMethodInsn(opcode, owner, name, desc, itf);
-                        }
-
-                        @Override
-                        public void visitIntInsn(int opcode, int operand) {
-                            // Try detecting the presence of ACGaming's fix. If found we will just skip patching.
-                            if (opcode == Opcodes.BIPUSH && operand == (int)'O') {
-                                this.foundFix = true;
-                            }
-                            super.visitIntInsn(opcode, operand);
-                        }
-                    };
+            public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                if (opcode == Opcodes.INVOKEVIRTUAL && "getPatternMarker".equals(name) && !foundFix) {
+                    opcode = Opcodes.INVOKESTATIC;
+                    owner = "info/tritusk/modpack/railcraft/patcher/StructurePatternHook";
+                    name = "getPatternMarker0";
+                    desc = "(Lmods/railcraft/common/blocks/structures/StructurePattern;III)C";
+                    itf = false;
                 }
-                return mv;
+                super.visitMethodInsn(opcode, owner, name, desc, itf);
             }
-        }, 0);
-        return writer.toByteArray();
+
+            @Override
+            public void visitIntInsn(int opcode, int operand) {
+                // Try detecting the presence of ACGaming's fix. If found we will just skip patching.
+                if (opcode == Opcodes.BIPUSH && operand == (int)'O') {
+                    this.foundFix = true;
+                }
+                super.visitIntInsn(opcode, operand);
+            }
+        });
     }
 
     private static byte[] tryFixAnvilScreen(byte[] basicClass) {
@@ -274,106 +253,58 @@ public class Xformer implements IClassTransformer {
     }
 
     private byte[] tryDisableInvTitle(byte[] basicClass) {
-        ClassNode node = new ClassNode();
-        new ClassReader(basicClass).accept(node, 0);
-
-        MethodNode targetMethod = null;
-        for (MethodNode m : node.methods) {
-            if ("<init>".equals(m.name)) {
-                targetMethod = m;
-                break;
+        return patch(basicClass, "<init>", (api, mv) -> new MethodVisitor(api, mv) {
+            @Override
+            public void visitInsn(int opcode) {
+                if (opcode == Opcodes.RETURN) {
+                    super.visitVarInsn(Opcodes.ALOAD, 0);
+                    super.visitInsn(Opcodes.ICONST_0);
+                    super.visitFieldInsn(Opcodes.PUTFIELD, "mods/railcraft/client/gui/GuiManipulatorCartRF", "drawInvTitle", "Z");
+                }
+                super.visitInsn(opcode);
             }
-        }
-
-        if (targetMethod == null) { // Not sure how is that even possible, but yeah, fool-proof.
-            return basicClass;
-        }
-
-        InsnList instructions = targetMethod.instructions;
-        AbstractInsnNode endOfMethod = instructions.getLast();
-        while (endOfMethod != null && endOfMethod.getOpcode() != Opcodes.RETURN) {
-            endOfMethod = endOfMethod.getPrevious();
-        }
-        if (endOfMethod == null) {
-            return basicClass;
-        }
-
-        InsnList injectAtTail = new InsnList();
-        injectAtTail.add(new VarInsnNode(Opcodes.ALOAD, 0));
-        injectAtTail.add(new InsnNode(Opcodes.ICONST_0));
-        injectAtTail.add(new FieldInsnNode(Opcodes.PUTFIELD, "mods/railcraft/client/gui/GuiManipulatorCartRF", "drawInvTitle", "Z"));
-        targetMethod.instructions.insertBefore(endOfMethod, injectAtTail);
-
-        ClassWriter writer = new ClassWriter(0);
-        node.accept(writer);
-        return writer.toByteArray();
+        });
     }
 
     private byte[] tryPatchRailcraftContainer(byte[] basicClass) {
-        ClassNode node = new ClassNode();
-        new ClassReader(basicClass).accept(node, 0);
-
-        MethodNode targetMethod = null;
-        for (MethodNode m : node.methods) {
-            if ("addPlayerSlots".equals(m.name) && "(Lnet/minecraft/entity/player/InventoryPlayer;I)V".equals(m.desc)) {
-                targetMethod = m;
-                break;
+        return patch(basicClass, "addPlayerSlots", "(Lnet/minecraft/entity/player/InventoryPlayer;I)V", (api, mv) -> new MethodVisitor(api, mv) {
+            @Override
+            public void visitCode() {
+                Label nullCheckPass = new Label();
+                super.visitVarInsn(Opcodes.ALOAD, 1);
+                super.visitJumpInsn(Opcodes.IFNONNULL, nullCheckPass);
+                super.visitInsn(Opcodes.RETURN);
+                super.visitFrame(Opcodes.F_APPEND, 0, new Object[0], 1, new Object[]{ "Lnet/minecraft/entity/player/InventoryPlayer;" });
+                super.visitLabel(nullCheckPass);
+                super.visitCode();
             }
-        }
-
-        if (targetMethod == null) {
-            return basicClass;
-        }
-
-        InsnList injectAtHead = new InsnList();
-        LabelNode nullCheckPass = new LabelNode(new Label());
-        injectAtHead.add(new VarInsnNode(Opcodes.ALOAD, 1));
-        injectAtHead.add(new JumpInsnNode(Opcodes.IFNONNULL, nullCheckPass));
-        injectAtHead.add(new InsnNode(Opcodes.RETURN));
-        injectAtHead.add(new FrameNode(Opcodes.F_APPEND, 0, new Object[0], 1, new Object[] { "Lnet/minecraft/entity/player/InventoryPlayer;" }));
-        injectAtHead.add(nullCheckPass);
-        targetMethod.instructions.insert(injectAtHead);
-
-        ClassWriter writer = new ClassWriter(0);
-        node.accept(writer);
-        return writer.toByteArray();
+        });
     }
 
     private byte[] tryFixGuiRouting(byte[] basicClass) {
-        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
-        new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
+        return patch(basicClass, "<init>", (api, mv) -> new MethodVisitor(api, mv) {
             @Override
-            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
-                MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
-                if ("<init>".equals(name)) {
-                    mv = new MethodVisitor(Opcodes.ASM5, mv) {
-                        @Override
-                        public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
-                            if (opcode == Opcodes.INVOKESPECIAL && "mods/railcraft/client/gui/GuiTitled".equals(owner)) {
-                                super.visitVarInsn(Opcodes.ALOAD, 1);
-                                super.visitFieldInsn(Opcodes.GETFIELD, "mods/railcraft/common/gui/containers/ContainerTrackRouting",
-                                        "kit", "Lmods/railcraft/common/blocks/tracks/outfitted/kits/TrackKitRailcraft;");
-                                super.visitTypeInsn(Opcodes.CHECKCAST, "mods/railcraft/common/blocks/tracks/outfitted/kits/TrackKitRouting");
-                                super.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
-                                        "mods/railcraft/common/blocks/tracks/outfitted/kits/TrackKitRouting",
-                                        "getTrackKit",
-                                        "()Lmods/railcraft/api/tracks/TrackKit;",
-                                        false);
-                                super.visitMethodInsn(Opcodes.INVOKESTATIC,
-                                        "mods/railcraft/common/plugins/forge/LocalizationPlugin",
-                                        "localize",
-                                        "(Lmods/railcraft/api/tracks/TrackKit;)Lnet/minecraft/util/text/ITextComponent;",
-                                        false);
-                                desc = "(Lnet/minecraft/world/IWorldNameable;Lmods/railcraft/common/gui/containers/RailcraftContainer;Ljava/lang/String;Lnet/minecraft/util/text/ITextComponent;)V";
-                            }
-                            super.visitMethodInsn(opcode, owner, name, desc, itf);
-                        }
-                    };
+            public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                if (opcode == Opcodes.INVOKESPECIAL && "mods/railcraft/client/gui/GuiTitled".equals(owner)) {
+                    super.visitVarInsn(Opcodes.ALOAD, 1);
+                    super.visitFieldInsn(Opcodes.GETFIELD, "mods/railcraft/common/gui/containers/ContainerTrackRouting",
+                            "kit", "Lmods/railcraft/common/blocks/tracks/outfitted/kits/TrackKitRailcraft;");
+                    super.visitTypeInsn(Opcodes.CHECKCAST, "mods/railcraft/common/blocks/tracks/outfitted/kits/TrackKitRouting");
+                    super.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                            "mods/railcraft/common/blocks/tracks/outfitted/kits/TrackKitRouting",
+                            "getTrackKit",
+                            "()Lmods/railcraft/api/tracks/TrackKit;",
+                            false);
+                    super.visitMethodInsn(Opcodes.INVOKESTATIC,
+                            "mods/railcraft/common/plugins/forge/LocalizationPlugin",
+                            "localize",
+                            "(Lmods/railcraft/api/tracks/TrackKit;)Lnet/minecraft/util/text/ITextComponent;",
+                            false);
+                    desc = "(Lnet/minecraft/world/IWorldNameable;Lmods/railcraft/common/gui/containers/RailcraftContainer;Ljava/lang/String;Lnet/minecraft/util/text/ITextComponent;)V";
                 }
-                return mv;
+                super.visitMethodInsn(opcode, owner, name, desc, itf);
             }
-        }, 0);
-        return writer.toByteArray();
+        });
     }
 
     private byte[] tryUseI18nForTrackGui(byte[] basicClass) {
@@ -395,47 +326,27 @@ public class Xformer implements IClassTransformer {
     }
 
     private byte[] tryExpandStackSizeLimitInWorldSpike(byte[] basicClass) {
-        ClassNode node = new ClassNode();
-        new ClassReader(basicClass).accept(node, 0);
-
-        MethodNode constructor = null;
-        for (MethodNode m : node.methods) {
-            if ("<init>".equals(m.name)) {
-                constructor = m;
-                break;
+        return patch(basicClass, "<init>", (api, mv) -> new MethodVisitor(api, mv) {
+            @Override
+            public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                if (opcode == Opcodes.INVOKEVIRTUAL && "setInventoryStackLimit".equals(name)) {
+                    // Redirect the setInventoryStackLimit(16) call to our impl, which in turn voids the effect.
+                    opcode = Opcodes.INVOKESTATIC;
+                    owner = "info/tritusk/modpack/railcraft/patcher/hooks/WorldSpikeHook";
+                    name = "setInvStackLimit0";
+                    desc = "(Lmods/railcraft/common/util/inventory/InventoryAdvanced;I)Lmods/railcraft/common/util/inventory/InventoryAdvanced;";
+                    itf = false;
+                }
+                super.visitMethodInsn(opcode, owner, name, desc, itf);
             }
-        }
-
-        if (constructor == null) { // Not sure how is that even possible, but yeah, fool-proof.
-            return basicClass;
-        }
-
-        InsnList instructions = constructor.instructions;
-        AbstractInsnNode target = instructions.getLast();
-        do {
-            if (target.getOpcode() == Opcodes.ALOAD) {
-                break;
-            }
-        } while ((target = target.getPrevious()) != null);
-
-        if (target == null) {
-            return basicClass;
-        }
-
-        // Return early before the getInventory().setInventoryStackLimit(16) call chain,
-        // effectively nullify the call.
-        instructions.insertBefore(target, new InsnNode(Opcodes.RETURN));
-
-        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
-        node.accept(writer);
-        return writer.toByteArray();
+        });
     }
 
     private static byte[] tryPatchingTileRailcraft(byte[] basicClass) {
         return patch(basicClass, "markBlockForUpdate", (api, mv) -> new MethodVisitor(api, mv) {
             @Override
             public void visitCode() {
-                // Remove the entire method body, replacing with a stub.
+                // Skip the entire method body by an early return
                 // The original method calls World::notifyBlockUpdate with flag 8, which forces Minecraft
                 // to rebuild render chunk (a 16 * 16 * 16 box) on main client thread.
                 // By not calling notifyBlockUpdate, it can avoid unnecessary render chunk re-building.
@@ -446,6 +357,7 @@ public class Xformer implements IClassTransformer {
                 // altogether.
                 // TODO this method may be called on server; we need to access its impact and restore correct behavior if there is desync.
                 super.visitInsn(Opcodes.RETURN);
+                super.visitFrame(Opcodes.F_SAME, 0, new Object[0], 0, new Object[0]);
             }
         });
     }
@@ -474,6 +386,21 @@ public class Xformer implements IClassTransformer {
             public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
                 MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
                 if (name.equals(methodToPatch)) {
+                    mv = patcher.apply(this.api, mv);
+                }
+                return mv;
+            }
+        }, 0);
+        return writer.toByteArray();
+    }
+
+    private static byte[] patch(byte[] basicClass, String methodToPatch, String targetMethodDesc, BiFunction<Integer, MethodVisitor, MethodVisitor> patcher) {
+        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
+                MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
+                if (name.equals(methodToPatch) && desc.equals(targetMethodDesc)) {
                     mv = patcher.apply(this.api, mv);
                 }
                 return mv;
