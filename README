@@ -54,3 +54,5 @@ TODO
 - Call EntityDataManager.defineId in-place.
   - Log claims "[i]ts just Forge being nosy"; however, under rare edge cases it can signal real issue.
   - Does not appear to be a serious issue, though.
+- Worldspike GUI won't accept item stack with count > 16 due to Container restriction.
+  - You can use Hopper to bypass, though (Railcraft/Railcraft#2082 - which we fixes)
