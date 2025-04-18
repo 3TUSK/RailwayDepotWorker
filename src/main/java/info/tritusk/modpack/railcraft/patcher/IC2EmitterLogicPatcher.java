@@ -15,9 +15,9 @@ public final class IC2EmitterLogicPatcher extends ClassVisitor {
     public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
         MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
         switch (name) {
-            case "onStructureChanged": return new StructureChangedPatcher(Opcodes.ASM5, mv);
-            case "addToNet": return new AddToENetPatcher(Opcodes.ASM5, mv);
-            case "dropFromNet": return new RemoveFromENetPatcher(Opcodes.ASM5, mv);
+            case "onStructureChanged": return new StructureChangedPatcher(this.api, mv);
+            case "addToNet": return new AddToENetPatcher(this.api, mv);
+            case "dropFromNet": return new RemoveFromENetPatcher(this.api, mv);
             default: return mv;
         }
     }
@@ -36,7 +36,7 @@ public final class IC2EmitterLogicPatcher extends ClassVisitor {
              * bootstrap method (bsm for short) takes 6 args.
              * 1st arg is MethodHandles.Lookup which will be taken care automatically.
              * 2nd arg is the `name` here. It is the name of sole method in target functional interface.
-             * 3rd arg is the `desc` here. It should contain all captured variables.
+             * 3rd arg is the `desc` here. It should contain all captured variables, and return an instance of the target functional interface.
              * 4th arg is bsmArgs[0]. It is the samMethodType.
              * 5th arg is bsmArgs[1]. It is the method handle of the actual implementation.
              * 6th arg is bsmArgs[2]. It is the concrete type of samMethodType. It may be the same of samMethodType.
