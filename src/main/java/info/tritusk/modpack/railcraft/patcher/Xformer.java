@@ -30,6 +30,7 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.common.carts.RailcraftCarts": return tryFixCargoCartDismantleRecipe(basicClass);
             case "mods.railcraft.common.gui.containers.RailcraftContainer": return tryPatchRailcraftContainer(basicClass);
             case "mods.railcraft.client.core.ClientProxy": return tryFixFluidTextureWithThirdPartyMods(basicClass);
+            case "mods.railcraft.common.gui.containers.ContainerWorldspike": return tryExpandStackSizeLimitInWorldSpikeGUI(basicClass);
             case "mods.railcraft.client.gui.GuiAnvil": return tryFixAnvilScreen(basicClass);
             case "mods.railcraft.client.gui.GuiTrackDelayedLocking":
             case "mods.railcraft.client.gui.GuiTrackEmbarking":
@@ -41,6 +42,23 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.common.modules.ModuleMagic$1": return tryReplaceFirestoneTicker(basicClass);
             default: return basicClass;
         }
+    }
+
+    private byte[] tryExpandStackSizeLimitInWorldSpikeGUI(byte[] basicClass) {
+        return patch(basicClass, "<init>", (api, mv) -> new MethodVisitor(api, mv) {
+            @Override
+            public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                if (opcode == Opcodes.INVOKEVIRTUAL && "setStackLimit".equals(name)) {
+                    // Redirect the setInventoryStackLimit(16) call to our impl, which in turn voids the effect.
+                    opcode = Opcodes.INVOKESTATIC;
+                    owner = "info/tritusk/modpack/railcraft/patcher/hooks/WorldSpikeHook";
+                    name = "setInvStackLimit0";
+                    desc = "(Lmods/railcraft/common/gui/slots/SlotIngredientMap;I)Lmods/railcraft/common/gui/slots/SlotIngredientMap;";
+                    itf = false;
+                }
+                super.visitMethodInsn(opcode, owner, name, desc, itf);
+            }
+        });
     }
 
     private byte[] tryFixCargoCartDismantleRecipe(byte[] basicClass) {

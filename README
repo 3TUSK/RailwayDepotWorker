@@ -8,7 +8,7 @@ As of now, it:
   (Railcraft/Railcraft#2120)
 - Aggressively fixes FPS drop when some Railcraft machines are running, e.g. boiler.
   (Railcraft/Railcraft#2121)
-- Allows worldspike to stack fuels to item's own maximum stack size
+- Allows worldspike to stack fuels to item's own maximum stack size (works in GUI and automation)
   (Railcraft/Railcraft#2082)
 - Fixes some outfitted track GUIs showing raw translation key as title
   (Railcraft/Railcraft#2097)
@@ -54,5 +54,3 @@ TODO
 - Call EntityDataManager.defineId in-place.
   - Log claims "[i]ts just Forge being nosy"; however, under rare edge cases it can signal real issue.
   - Does not appear to be a serious issue, though.
-- Worldspike GUI won't accept item stack with count > 16 due to Container restriction.
-  - You can use Hopper to bypass, though (Railcraft/Railcraft#2082 - which we fixes)
