@@ -18,6 +18,9 @@ minecraft {
     runDir = "run"
 
     mappings = "stable_39"
+
+    clientJvmArgs += "-Dfml.coreMods.load=info.tritusk.modpack.railcraft.patcher.EntryPoint"
+    serverJvmArgs += "-Dfml.coreMods.load=info.tritusk.modpack.railcraft.patcher.EntryPoint"
 }
 
 version = main_version
