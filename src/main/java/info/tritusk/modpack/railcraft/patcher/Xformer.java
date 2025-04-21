@@ -51,7 +51,7 @@ public class Xformer implements IClassTransformer {
                 if (opcode == Opcodes.INVOKEVIRTUAL && "setStackLimit".equals(name)) {
                     // Redirect the setInventoryStackLimit(16) call to our impl, which in turn voids the effect.
                     opcode = Opcodes.INVOKESTATIC;
-                    owner = "info/tritusk/modpack/railcraft/patcher/hooks/WorldSpikeHook";
+                    owner = "info/tritusk/modpack/railcraft/patcher/hooks/Hooks";
                     name = "setInvStackLimit0";
                     desc = "(Lmods/railcraft/common/gui/slots/SlotIngredientMap;I)Lmods/railcraft/common/gui/slots/SlotIngredientMap;";
                     itf = false;
@@ -110,7 +110,7 @@ public class Xformer implements IClassTransformer {
             public void visitInsn(int opcode) {
                 if (opcode == Opcodes.POP) {
                     super.visitVarInsn(Opcodes.ALOAD, 1);
-                    super.visitMethodInsn(Opcodes.INVOKESTATIC, "info/tritusk/modpack/railcraft/patcher/hooks/HopperCartHooks", "handleItemRemainder",
+                    super.visitMethodInsn(Opcodes.INVOKESTATIC, "info/tritusk/modpack/railcraft/patcher/hooks/Hooks", "handleItemRemainder",
                             "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/item/EntityItem;)V", false);
                     return;
                 }
@@ -200,7 +200,7 @@ public class Xformer implements IClassTransformer {
             public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
                 if (opcode == Opcodes.INVOKEVIRTUAL && "getPatternMarker".equals(name) && !foundFix) {
                     opcode = Opcodes.INVOKESTATIC;
-                    owner = "info/tritusk/modpack/railcraft/patcher/StructurePatternHook";
+                    owner = "info/tritusk/modpack/railcraft/patcher/hooks/Hooks";
                     name = "getPatternMarker0";
                     desc = "(Lmods/railcraft/common/blocks/structures/StructurePattern;III)C";
                     itf = false;
@@ -350,7 +350,7 @@ public class Xformer implements IClassTransformer {
                 if (opcode == Opcodes.INVOKEVIRTUAL && "setInventoryStackLimit".equals(name)) {
                     // Redirect the setInventoryStackLimit(16) call to our impl, which in turn voids the effect.
                     opcode = Opcodes.INVOKESTATIC;
-                    owner = "info/tritusk/modpack/railcraft/patcher/hooks/WorldSpikeHook";
+                    owner = "info/tritusk/modpack/railcraft/patcher/hooks/Hooks";
                     name = "setInvStackLimit0";
                     desc = "(Lmods/railcraft/common/util/inventory/InventoryAdvanced;I)Lmods/railcraft/common/util/inventory/InventoryAdvanced;";
                     itf = false;
