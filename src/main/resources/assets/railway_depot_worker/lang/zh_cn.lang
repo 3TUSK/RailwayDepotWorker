@@ -1,0 +1,10 @@
+railway_depot_worker.beta_warning.one_line=你正在同时使用 Railcraft 和 Railway Depot Worker。风险自负。请优先向 Railway Depot Worker 反馈问题。
+
+railway_depot_worker.beta_warning.1=你正在使用开发版 Railcraft。
+railway_depot_worker.beta_warning.2=我们不能保证你的服务器或存档的安全。
+railway_depot_worker.beta_warning.3=我们不能保证所有恶性漏洞都能在下一个稳定版发布前得到修复。
+railway_depot_worker.beta_warning.4=我们不能保证下个测试版本有确定的发布计划。
+railway_depot_worker.beta_warning.5=使用该版本表明你接受由此带来的所有风险，包括但不限于未知 Bug 等。
+railway_depot_worker.beta_warning.6=这个版本不应在整合包中使用。
+railway_depot_worker.beta_warning.7=祝玩得开心！
+railway_depot_worker.beta_warning.8=- CovertJaguar

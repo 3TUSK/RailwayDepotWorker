@@ -7,11 +7,15 @@ import mods.railcraft.common.util.charge.ChargeNetwork;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3i;
+import mods.railcraft.common.core.BetaMessageTickHandler;
 import net.minecraft.world.World;
 import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.ForgeChunkManager;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.config.Configuration;
 import net.minecraftforge.common.config.Property;
+import net.minecraftforge.fml.client.FMLFileResourcePack;
+import net.minecraftforge.fml.client.FMLFolderResourcePack;
 import net.minecraftforge.fml.common.DummyModContainer;
 import net.minecraftforge.fml.common.LoadController;
 import net.minecraftforge.fml.common.Loader;
@@ -36,6 +40,9 @@ public class ModContainer extends DummyModContainer {
     public static boolean disableFluidTextureFix = true;
     public static boolean useAlternativeFluidTextureFix = true;
 
+    public static String betaWarningMessageMode = "original";
+    public static boolean oneLineBetaWarning = true;
+
     public ModContainer() {
         super(new ModMetadata());
         final ModMetadata meta = this.getMetadata();
@@ -51,6 +58,16 @@ public class ModContainer extends DummyModContainer {
     public boolean registerBus(EventBus bus, LoadController controller) {
         bus.register(this);
         return true;
+    }
+
+    @Override
+    public File getSource() {
+        return EntryPoint.modLocation;
+    }
+
+    @Override
+    public Class<?> getCustomResourcePackClass() {
+        return getSource() == null || getSource().isDirectory() ? FMLFolderResourcePack.class : FMLFileResourcePack.class;
     }
 
     // Caveat: due to how DefaultArtifactVersion::equals was implemented, the set returned here must
@@ -70,6 +87,13 @@ public class ModContainer extends DummyModContainer {
         prop.setRequiresMcRestart(true);
         useAlternativeFirestoneTicker = prop.getBoolean();
 
+        prop = config.get("general", "betaMessage", "lite", "How to deal with beta message warning?",
+                new String[] { "original", "lite", "off" });
+        betaWarningMessageMode = prop.getString();
+
+        prop = config.get("general", "oneLineBetaWarning", true, "Use a simplified beta warning message.");
+        oneLineBetaWarning = prop.getBoolean();
+
         prop = config.get("general", "disableFluidTextureFix", true,
                 "It seems that Railcraft was trying to \"fix\" fluids from other mods that forgot to register the texture into atlas. \nHowever, this is known to break some unusual fluid textures, most notably Molten Demon Metal from ExtraUtils2 when Tinkers Construct is also installed. \nThis option lets you to control whether you want this \"fix\" or not.");
         prop.setRequiresMcRestart(true);
@@ -88,6 +112,25 @@ public class ModContainer extends DummyModContainer {
     @Subscribe
     public void postInit(FMLPostInitializationEvent event) {
         Recipes.addExtraRecipes();
+
+        if (betaWarningMessageMode != null) {
+            dealWithBetaWarningMessage();
+        }
+    }
+
+    private static void dealWithBetaWarningMessage() {
+        switch (betaWarningMessageMode) {
+            case "lite":
+                // If lite mode is used, also register our own beta message handler.
+                MinecraftForge.EVENT_BUS.register(LiteBetaWarning.class);
+            case "off":
+                // Unregister the original beta message handler
+                MinecraftForge.EVENT_BUS.unregister(BetaMessageTickHandler.INSTANCE);
+                break;
+            case "original":
+            default:
+                break;
+        }
     }
 
     @Subscribe
