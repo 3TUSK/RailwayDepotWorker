@@ -1,9 +1,15 @@
 package info.tritusk.modpack.railcraft.patcher.hooks;
 
+import mods.railcraft.common.blocks.logic.Logic;
 import mods.railcraft.common.blocks.structures.StructurePattern;
+import mods.railcraft.common.carts.EntityLocomotiveSteam;
 import mods.railcraft.common.gui.slots.SlotIngredientMap;
+import mods.railcraft.common.util.inventory.IInventoryImplementor;
 import mods.railcraft.common.util.inventory.InventoryAdvanced;
+import mods.railcraft.common.util.inventory.wrappers.InventoryMapper;
 import net.minecraft.entity.item.EntityItem;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
 
 /**
@@ -33,5 +39,48 @@ public final class Hooks {
 
     public static <T> SlotIngredientMap<T> setInvStackLimit0(SlotIngredientMap<T> self, int limit) {
         return self;
+    }
+
+    public static void initSteamLocomotive(EntityLocomotiveSteam locomotive, Logic.Adapter adapter, InventoryMapper waterHandlerInv) {
+        locomotive.boiler.addLogic(new WaterHandlerLogicWrapper(adapter, waterHandlerInv));
+    }
+
+    /**
+     * A dummy {@link Logic} implementation that also implements {@link IInventoryImplementor}, used for exposing
+     * an inventory as a {@code Logic} instance.
+     */
+    private static final class WaterHandlerLogicWrapper extends Logic implements IInventoryImplementor {
+
+        /*
+         * Implementation summary
+         *
+         * In EntityLocomotiveSteam, when constructing instance, an instance of BucketProcessorLogic is
+         * attached to its boiler logic. This BucketProcessorLogic attempts to find "water input slots"
+         * from all sub-logic attached to it, cast to IInventoryImplementor type and then use it as a
+         * source to pull water from.
+         *
+         * In short, to make the water input slots usable, we need to make boiler logic to find this
+         * inventory. To make the boiler logic find this inventory, we need to wrap it as an instance
+         * of Logic.
+         *
+         * Thus this implementation.
+         */
+
+        private final InventoryMapper waterHandler;
+
+        public WaterHandlerLogicWrapper(Adapter adapter, InventoryMapper waterHandler) {
+            super(adapter);
+            this.waterHandler = waterHandler;
+        }
+
+        @Override
+        public IInventory getInventory() {
+            return this.waterHandler;
+        }
+
+        @Override
+        public boolean isUsableByPlayer(EntityPlayer entityPlayer) {
+            return false;
+        }
     }
 }

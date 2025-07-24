@@ -26,6 +26,7 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.common.blocks.machine.manipulator.TileRFLoader":
             case "mods.railcraft.common.blocks.machine.manipulator.TileRFUnloader": return tryReenableRFManipulatorGUI(basicClass);
             case "mods.railcraft.common.carts.EntityCartHopper": return tryFixHopperCartDupe(basicClass);
+            case "mods.railcraft.common.carts.EntityLocomotiveSteam": return tryAddWaterDrainLogic(basicClass);
             case "mods.railcraft.common.carts.MinecartHooks": return tryFixCartInvDuplication(basicClass);
             case "mods.railcraft.common.carts.RailcraftCarts": return tryFixCargoCartDismantleRecipe(basicClass);
             case "mods.railcraft.common.gui.containers.RailcraftContainer": return tryPatchRailcraftContainer(basicClass);
@@ -42,6 +43,12 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.common.modules.ModuleMagic$1": return tryReplaceFirestoneTicker(basicClass);
             default: return basicClass;
         }
+    }
+
+    private byte[] tryAddWaterDrainLogic(byte[] basicClass) {
+        ClassWriter writer = new ClassWriter(0);
+        new ClassReader(basicClass).accept(new SteamLocomotivePatcher(Opcodes.ASM5, writer), 0);
+        return writer.toByteArray();
     }
 
     private byte[] tryExpandStackSizeLimitInWorldSpikeGUI(byte[] basicClass) {
