@@ -37,7 +37,7 @@ public class SteamLocomotivePatcher extends ClassVisitor {
                 super.visitVarInsn(Opcodes.ALOAD, 0);
                 super.visitVarInsn(Opcodes.ALOAD, this.localVarPosition);
                 super.visitVarInsn(Opcodes.ALOAD, 0);
-                super.visitFieldInsn(Opcodes.GETFIELD, "mods/railcraft/common/carts/EntityLocomotiveSteam", "invWaterContainers", "Lmods/railcraft/common/util/inventory/wrappers/InventoryMapper");
+                super.visitFieldInsn(Opcodes.GETFIELD, "mods/railcraft/common/carts/EntityLocomotiveSteam", "invWaterContainers", "Lmods/railcraft/common/util/inventory/wrappers/InventoryMapper;");
                 super.visitMethodInsn(Opcodes.INVOKESTATIC, "info/tritusk/modpack/railcraft/patcher/hooks/Hooks", "initSteamLocomotive",
                         "(Lmods/railcraft/common/carts/EntityLocomotiveSteam;Lmods/railcraft/common/blocks/logic/Logic$Adapter;Lmods/railcraft/common/util/inventory/wrappers/InventoryMapper;)V", false);
             }
