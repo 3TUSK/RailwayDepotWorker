@@ -18,6 +18,8 @@ public class Xformer implements IClassTransformer {
             return basicClass;
         }
         switch (transformedName) {
+            case "mods.railcraft.common.fluids.FluidContainerHandler": return tryGuardFluidContainerHandler(basicClass);
+            case "mods.railcraft.common.util.crafting.FluidIngredient": return tryGuardFluidIngredient(basicClass);
             case "mods.railcraft.common.plugins.jei.rolling.RollingMachineRecipeCategory": return tryFixRollingRecipeDisplayInJEI(basicClass);
             case "mods.railcraft.common.blocks.TileRailcraft": return tryPatchingTileRailcraft(basicClass);
             case "mods.railcraft.common.blocks.machine.worldspike.TileWorldspike": return tryExpandStackSizeLimitInWorldSpike(basicClass);
@@ -48,6 +50,66 @@ public class Xformer implements IClassTransformer {
     private byte[] tryAddWaterDrainLogic(byte[] basicClass) {
         ClassWriter writer = new ClassWriter(0);
         new ClassReader(basicClass).accept(new SteamLocomotivePatcher(Opcodes.ASM5, writer), 0);
+        return writer.toByteArray();
+    }
+
+    private static byte[] tryGuardFluidContainerHandler(byte[] basicClass) {
+        // Patch init() to our guarded rebuild
+        byte[] out = patch(basicClass, "init", (api, mv) -> new MethodVisitor(api, mv) {
+            @Override
+            public void visitCode() {
+                super.visitVarInsn(Opcodes.ALOAD, 0);
+                super.visitMethodInsn(Opcodes.INVOKESTATIC, "info/tritusk/modpack/railcraft/patcher/hooks/FluidGuardHooks", "rebuildFluidCandidates", "(Ljava/lang/Object;)V", false);
+                super.visitInsn(Opcodes.RETURN);
+                super.visitFrame(Opcodes.F_SAME, 0, new Object[0], 0, new Object[0]);
+            }
+        });
+        // Patch findCanDrain(FluidStack) to our guarded implementation
+        return patch(out, "findCanDrain", "(Lnet/minecraftforge/fluids/FluidStack;)Ljava/util/List;", (api, mv) -> new MethodVisitor(api, mv) {
+            @Override
+            public void visitCode() {
+                super.visitVarInsn(Opcodes.ALOAD, 0);
+                super.visitVarInsn(Opcodes.ALOAD, 1);
+                super.visitMethodInsn(Opcodes.INVOKESTATIC, "info/tritusk/modpack/railcraft/patcher/hooks/FluidGuardHooks", "findCanDrain", "(Ljava/lang/Object;Lnet/minecraftforge/fluids/FluidStack;)Ljava/util/List;", false);
+                super.visitInsn(Opcodes.ARETURN);
+                super.visitFrame(Opcodes.F_SAME, 0, new Object[0], 0, new Object[0]);
+            }
+        });
+    }
+
+    private static byte[] tryGuardFluidIngredient(byte[] basicClass) {
+        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        new ClassReader(basicClass).accept(new ClassVisitor(Opcodes.ASM5, writer) {
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
+                MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
+                if ("apply".equals(name) && "(Lnet/minecraft/item/ItemStack;)Z".equals(desc)) {
+                    return new MethodVisitor(this.api, mv) {
+                        @Override
+                        public void visitCode() {
+                            super.visitVarInsn(Opcodes.ALOAD, 0);
+                            super.visitVarInsn(Opcodes.ALOAD, 1);
+                            super.visitMethodInsn(Opcodes.INVOKESTATIC, "info/tritusk/modpack/railcraft/patcher/hooks/FluidGuardHooks", "apply", "(Ljava/lang/Object;Lnet/minecraft/item/ItemStack;)Z", false);
+                            super.visitInsn(Opcodes.IRETURN);
+                            super.visitFrame(Opcodes.F_SAME, 0, new Object[0], 0, new Object[0]);
+                        }
+                    };
+                }
+                if ("getRemaining".equals(name) && "(Lnet/minecraft/item/ItemStack;)Lnet/minecraft/item/ItemStack;".equals(desc)) {
+                    return new MethodVisitor(this.api, mv) {
+                        @Override
+                        public void visitCode() {
+                            super.visitVarInsn(Opcodes.ALOAD, 0);
+                            super.visitVarInsn(Opcodes.ALOAD, 1);
+                            super.visitMethodInsn(Opcodes.INVOKESTATIC, "info/tritusk/modpack/railcraft/patcher/hooks/FluidGuardHooks", "getRemaining", "(Ljava/lang/Object;Lnet/minecraft/item/ItemStack;)Lnet/minecraft/item/ItemStack;", false);
+                            super.visitInsn(Opcodes.ARETURN);
+                            super.visitFrame(Opcodes.F_SAME, 0, new Object[0], 0, new Object[0]);
+                        }
+                    };
+                }
+                return mv;
+            }
+        }, 0);
         return writer.toByteArray();
     }
 
