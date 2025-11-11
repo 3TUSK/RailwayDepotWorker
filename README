@@ -31,12 +31,14 @@ As of now, it:
   (3TUSK/RailwayDeoptWorker#9)
 - Provides config options to solve the ExU2 missing fluid texture issue
   (3TUSK/RailwayDeoptWorker#10, Kanzaji/XU2-Patcher#1)
-- Fixes discrepency in Cargo Cart dismantling; now it gives back Redstone Comparator, which is used in crafting.
+- Fixes discrepancy in Cargo Cart dismantling; now it gives back Redstone Comparator, which is used in crafting.
   (Railcraft/Railcraft#2066)
-- Fixes incompatiblity with optimization mods that changes BlockPos#hashCode behavior, making powered machine usable again 
+- Fixes incompatiblity with optimization mods that changes BlockPos#hashCode behavior, making powered machine usable again
   (Railcraft/Railcraft#2123, 3TUSK/RailwayDeoptWorker#11)
 - Fixes water input slots in Steam Locomotive GUI, making them usable again
   (3TUSK/RailwayDeoptWorker#13)
+- Third slot of Solid Fuel Firebox is not accessible
+  (3TUSK/RailwayDepotWorker#20)
 
 This mod works in Minecraft 1.12.2 ONLY.
 
@@ -50,29 +52,29 @@ You can certainly use it in modpacks.
 FAQ
 
 Q: Do you accept new features, like a new cart or a new locomotive?
-A: Unfortunately no. 
-   This mod intends to fix issues left in Railcraft; it does not want new features (unless for fixing things). 
+A: Unfortunately no.
+   This mod intends to fix issues left in Railcraft; it does not want new features (unless for fixing things).
    New contents should be in a separate addon mod, in my opinion.
 
 Q: What does that "betaMessage" mean in config file?
 A: There are three (3) possible options for that config option:
 
   1. lite
-     This is the default behavior. 
-     Replace the beta warning with our warning, saying all Railcraft issues should be reported to 
+     This is the default behavior.
+     Replace the beta warning with our warning, saying all Railcraft issues should be reported to
      Railway Depot Worker (here) first, if the Railway Depot Worker mod is installed.
      Also it makes the beta warning translatable.
      Also it makes beta warning appear only once for every player.
   2. original
      Do not touch the beta message. This is the original Railcraft behavior.
   3. off
-     Turns off everything. 
+     Turns off everything.
      Useful if you are making a modpack; in this case, you want all issues in your modpack to go to modpack author (i.e. you) first.
 
 Q: Do you have a changelog?
-A: Unfortunately, no. 
+A: Unfortunately, no.
    The idea is that you always want the latest version, so that you can have all the fixes and the new fixes.
-   I will try find some time to (retroactively) create a proper one, though. 
+   I will try find some time to (retroactively) create a proper one, though.
 
 ------
 
@@ -87,3 +89,5 @@ TODO
 - Call EntityDataManager.defineId in-place.
   - Log claims "[i]ts just Forge being nosy"; however, under rare edge cases it can signal real issue.
   - Does not appear to be a serious issue, though.
+- Some of the villager trade should supports OreDict.
+  - Unfortunately this is a vanilla limitation.

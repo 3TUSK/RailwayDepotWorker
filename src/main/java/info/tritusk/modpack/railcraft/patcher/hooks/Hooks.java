@@ -2,14 +2,18 @@ package info.tritusk.modpack.railcraft.patcher.hooks;
 
 import mods.railcraft.common.blocks.logic.Logic;
 import mods.railcraft.common.blocks.structures.StructurePattern;
+import mods.railcraft.common.blocks.structures.TileBoilerFireboxSolid;
 import mods.railcraft.common.carts.EntityLocomotiveSteam;
+import mods.railcraft.common.gui.containers.RailcraftContainer;
 import mods.railcraft.common.gui.slots.SlotIngredientMap;
+import mods.railcraft.common.gui.slots.SlotRailcraft;
 import mods.railcraft.common.util.inventory.IInventoryImplementor;
 import mods.railcraft.common.util.inventory.InventoryAdvanced;
 import mods.railcraft.common.util.inventory.wrappers.InventoryMapper;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
+import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 
 /**
@@ -43,6 +47,19 @@ public final class Hooks {
 
     public static void initSteamLocomotive(EntityLocomotiveSteam locomotive, Logic.Adapter adapter, InventoryMapper waterHandlerInv) {
         locomotive.boiler.addLogic(new WaterHandlerLogicWrapper(adapter, waterHandlerInv));
+    }
+
+    public static void fixSolidBoilerSlotIndex(RailcraftContainer container, Slot slot) {
+        // 1. Check if we get the 3rd fuel slot
+        if (slot.xPos == 89 && slot.yPos == 56) {
+            // 2. Then check if it points to the wrong slot
+            if (slot.getSlotIndex() == TileBoilerFireboxSolid.SLOT_BUNKER_B) {
+                // 3. If so, change it to the correct one
+                slot = new SlotRailcraft(slot.inventory, TileBoilerFireboxSolid.SLOT_BUNKER_C, 89, 56);
+            }
+        }
+        // 4. Proceed to add the slot
+        container.addSlot(slot);
     }
 
     /**

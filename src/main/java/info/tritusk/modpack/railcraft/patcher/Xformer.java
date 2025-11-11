@@ -29,6 +29,7 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.common.carts.EntityLocomotiveSteam": return tryAddWaterDrainLogic(basicClass);
             case "mods.railcraft.common.carts.MinecartHooks": return tryFixCartInvDuplication(basicClass);
             case "mods.railcraft.common.carts.RailcraftCarts": return tryFixCargoCartDismantleRecipe(basicClass);
+            case "mods.railcraft.common.gui.containers.ContainerBoilerSolid": return tryFixSolidBoilerContainer(basicClass);
             case "mods.railcraft.common.gui.containers.RailcraftContainer": return tryPatchRailcraftContainer(basicClass);
             case "mods.railcraft.client.core.ClientProxy": return tryFixFluidTextureWithThirdPartyMods(basicClass);
             case "mods.railcraft.common.gui.containers.ContainerWorldspike": return tryExpandStackSizeLimitInWorldSpikeGUI(basicClass);
@@ -43,6 +44,23 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.common.modules.ModuleMagic$1": return tryReplaceFirestoneTicker(basicClass);
             default: return basicClass;
         }
+    }
+
+    private byte[] tryFixSolidBoilerContainer(byte[] basicClass) {
+        return patch(basicClass, "<init>", (api, mv) -> new MethodVisitor(api, mv) {
+            @Override
+            public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                if (opcode == Opcodes.INVOKEVIRTUAL && "addSlot".equals(name)) {
+                    // Redirect the addSlot call to our hooks, so that we can inspect and patch it before actually adding it.
+                    opcode = Opcodes.INVOKESTATIC;
+                    owner = "info/tritusk/modpack/railcraft/patcher/hooks/Hooks";
+                    name = "fixSolidBoilerSlotIndex";
+                    desc = "(Lmods/railcraft/common/gui/containers/RailcraftContainer;Lnet/minecraft/inventory/Slot;)V";
+                    itf = false;
+                }
+                super.visitMethodInsn(opcode, owner, name, desc, itf);
+            }
+        });
     }
 
     private byte[] tryAddWaterDrainLogic(byte[] basicClass) {
