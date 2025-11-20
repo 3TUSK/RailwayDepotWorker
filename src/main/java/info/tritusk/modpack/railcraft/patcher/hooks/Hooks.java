@@ -1,9 +1,12 @@
 package info.tritusk.modpack.railcraft.patcher.hooks;
 
+import mods.railcraft.common.blocks.logic.BoilerLogic;
+import mods.railcraft.common.blocks.logic.FluidLogic;
 import mods.railcraft.common.blocks.logic.Logic;
 import mods.railcraft.common.blocks.structures.StructurePattern;
 import mods.railcraft.common.blocks.structures.TileBoilerFireboxSolid;
 import mods.railcraft.common.carts.EntityLocomotiveSteam;
+import mods.railcraft.common.fluids.TankManager;
 import mods.railcraft.common.gui.containers.RailcraftContainer;
 import mods.railcraft.common.gui.slots.SlotIngredientMap;
 import mods.railcraft.common.gui.slots.SlotRailcraft;
@@ -60,6 +63,10 @@ public final class Hooks {
         }
         // 4. Proceed to add the slot
         container.addSlot(slot);
+    }
+
+    public static TankManager getTankManagerFromBoilerLogic(BoilerLogic logic) {
+        return logic.getLogic(FluidLogic.class).orElseThrow(RuntimeException::new).getTankManager();
     }
 
     /**
