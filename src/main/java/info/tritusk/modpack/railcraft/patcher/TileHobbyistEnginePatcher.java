@@ -23,6 +23,17 @@ public class TileHobbyistEnginePatcher extends ClassVisitor {
                     }
                 }
             };
+        } else if ("<init>".equals(name)) {
+            mv = new MethodVisitor(this.api, mv) {
+                @Override
+                public void visitInsn(int opcode) {
+                    if (opcode == Opcodes.RETURN) {
+                        super.visitVarInsn(Opcodes.ALOAD, 0);
+                        super.visitMethodInsn(Opcodes.INVOKESTATIC, "info/tritusk/modpack/railcraft/patcher/hooks/Hooks", "hobbyistEngineInitCallback", "(Lmods/railcraft/common/blocks/single/TileEngineSteamHobby;)V", false);
+                    }
+                    super.visitInsn(opcode);
+                }
+            };
         }
         return mv;
     }

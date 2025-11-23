@@ -1,8 +1,10 @@
 package info.tritusk.modpack.railcraft.patcher.hooks;
 
+import info.tritusk.modpack.railcraft.patcher.ModContainer;
 import mods.railcraft.common.blocks.logic.BoilerLogic;
 import mods.railcraft.common.blocks.logic.FluidLogic;
 import mods.railcraft.common.blocks.logic.Logic;
+import mods.railcraft.common.blocks.single.TileEngineSteamHobby;
 import mods.railcraft.common.blocks.structures.StructurePattern;
 import mods.railcraft.common.blocks.structures.TileBoilerFireboxSolid;
 import mods.railcraft.common.carts.EntityLocomotiveSteam;
@@ -67,6 +69,10 @@ public final class Hooks {
 
     public static TankManager getTankManagerFromBoilerLogic(BoilerLogic logic) {
         return logic.getLogic(FluidLogic.class).orElseThrow(RuntimeException::new).getTankManager();
+    }
+
+    public static void hobbyistEngineInitCallback(TileEngineSteamHobby tile) {
+        tile.boiler.tankSteam.canFill(ModContainer.hobbyistEngineCanAcceptSteam);
     }
 
     /**
