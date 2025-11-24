@@ -21,6 +21,7 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.common.plugins.jei.rolling.RollingMachineRecipeCategory": return tryFixRollingRecipeDisplayInJEI(basicClass);
             case "mods.railcraft.common.blocks.TileRailcraft": return tryPatchingTileRailcraft(basicClass);
             case "mods.railcraft.common.blocks.machine.worldspike.TileWorldspike": return tryExpandStackSizeLimitInWorldSpike(basicClass);
+            case "mods.railcraft.common.blocks.single.BlockTradeStation": return tryFixTradeStationBlockDrop(basicClass);
             case "mods.railcraft.common.blocks.single.TileEngineSteam": return tryPatchSteamEngineCommonCode(basicClass);
             case "mods.railcraft.common.blocks.single.TileEngineSteamHobby": return tryFixHobbyistEngine(basicClass);
             case "mods.railcraft.common.blocks.structures.StructurePattern": return tryFixStructurePatternCheck(basicClass);
@@ -46,6 +47,12 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.common.modules.ModuleMagic$1": return tryReplaceFirestoneTicker(basicClass);
             default: return basicClass;
         }
+    }
+
+    private byte[] tryFixTradeStationBlockDrop(byte[] basicClass) {
+        ClassWriter writer = new ClassWriter(0);
+        new ClassReader(basicClass).accept(new BlockTradeStationPatcher(Opcodes.ASM5, writer), 0);
+        return writer.toByteArray();
     }
 
     private byte[] tryPatchSteamEngineCommonCode(byte[] basicClass) {
