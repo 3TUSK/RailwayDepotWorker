@@ -75,6 +75,36 @@ public final class Hooks {
         tile.boiler.tankSteam.canFill(ModContainer.hobbyistEngineCanAcceptSteam);
     }
 
+    /*
+     * GH-23, xJon/Tekkit-2#20, Railcraft/Railcraft#2074: Incompatibility with UniDict
+     *
+     * UniDict modifies Railcraft's villager trade offer so that these trade offers can
+     * be "unified" based on ore dictionary.
+     * Before the modification, most of the trade offers are stored as Item or Block
+     * references, and new ItemStack instances are created whenever a trade GUI is opened.
+     * After the modification, these trade offers are all stored as ItemStack instances.
+     * Due to Railcraft's wrong assumption, these ItemStack instances are used directly,
+     * rather than being copied.
+     * For most of the trade offers, this will create no noticeable differences. However,
+     * for the crowbar and armor trades, because we also try giving them random enchantments,
+     * using the same ItemStack instances will cause all enchantments being "accumulated"
+     * as we are getting more villagers of the same trade offer.
+     * With just UniDict and Railcraft, it is still hard to notice this issue, for one need
+     * to spam dozens of tracker man villager and farm for that crowbar trade to build up
+     * the enchantments.
+     * However, the Just Enough Resources (JER) mod can accelerate this process, in which it
+     * will attempt to generate JEI recipes ahead of time by simulating the offer creation
+     * process. JER called the method so many times that these "residue" enchantments will
+     * build up very, very fast, creating noticeable glitch.
+     *
+     * The fix is simple: create a copy of the stack when Railcraft calls GenericTrade#prepareStack.
+     * Doing so, we make sure that we are not adding enchantments on the same ItemStack over
+     * and over again.
+     */
+    public static ItemStack fixTradeOffer(ItemStack originalOffer) {
+        return originalOffer.copy();
+    }
+
     /**
      * A dummy {@link Logic} implementation that also implements {@link IInventoryImplementor}, used for exposing
      * an inventory as a {@code Logic} instance.

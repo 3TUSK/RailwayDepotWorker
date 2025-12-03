@@ -8,7 +8,6 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
-
 import java.util.function.BiFunction;
 
 public class Xformer implements IClassTransformer {
@@ -45,8 +44,21 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.client.gui.GuiTrackRouting": return tryFixGuiRouting(basicClass);
             case "mods.railcraft.client.gui.GuiManipulatorCartRF": return tryDisableInvTitle(basicClass);
             case "mods.railcraft.common.modules.ModuleMagic$1": return tryReplaceFirestoneTicker(basicClass);
+            case "mods.railcraft.common.worldgen.VillagerTrades$GenericTrade": return fixTrades(basicClass);
             default: return basicClass;
         }
+    }
+
+    private static byte[] fixTrades(byte[] basicClass) {
+        return patch(basicClass, "prepareStack", (api, mv) -> new MethodVisitor(api, mv) {
+            @Override
+            public void visitTypeInsn(int opcode, String type) {
+                super.visitTypeInsn(opcode, type);
+                if (opcode == Opcodes.CHECKCAST && "net/minecraft/item/ItemStack".equals(type)) {
+                    super.visitMethodInsn(Opcodes.INVOKESTATIC, "info/tritusk/modpack/railcraft/patcher/hooks/Hooks", "fixTradeOffer", "(Lnet/minecraft/item/ItemStack;)Lnet/minecraft/item/ItemStack;", false);
+                }
+            }
+        });
     }
 
     private byte[] tryFixTradeStationBlockDrop(byte[] basicClass) {
