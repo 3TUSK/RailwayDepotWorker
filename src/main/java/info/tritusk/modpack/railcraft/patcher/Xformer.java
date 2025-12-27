@@ -8,7 +8,6 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
-
 import java.util.function.BiFunction;
 
 public class Xformer implements IClassTransformer {
@@ -23,6 +22,9 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.common.plugins.jei.rolling.RollingMachineRecipeCategory": return tryFixRollingRecipeDisplayInJEI(basicClass);
             case "mods.railcraft.common.blocks.TileRailcraft": return tryPatchingTileRailcraft(basicClass);
             case "mods.railcraft.common.blocks.machine.worldspike.TileWorldspike": return tryExpandStackSizeLimitInWorldSpike(basicClass);
+            case "mods.railcraft.common.blocks.single.BlockTradeStation": return tryFixTradeStationBlockDrop(basicClass);
+            case "mods.railcraft.common.blocks.single.TileEngineSteam": return tryPatchSteamEngineCommonCode(basicClass);
+            case "mods.railcraft.common.blocks.single.TileEngineSteamHobby": return tryFixHobbyistEngine(basicClass);
             case "mods.railcraft.common.blocks.structures.StructurePattern": return tryFixStructurePatternCheck(basicClass);
             case "mods.railcraft.common.blocks.logic.IC2EmitterLogic": return tryFixIC2EmitterLogic(basicClass);
             case "mods.railcraft.common.blocks.machine.manipulator.TileRFLoader":
@@ -31,6 +33,7 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.common.carts.EntityLocomotiveSteam": return tryAddWaterDrainLogic(basicClass);
             case "mods.railcraft.common.carts.MinecartHooks": return tryFixCartInvDuplication(basicClass);
             case "mods.railcraft.common.carts.RailcraftCarts": return tryFixCargoCartDismantleRecipe(basicClass);
+            case "mods.railcraft.common.gui.containers.ContainerBoilerSolid": return tryFixSolidBoilerContainer(basicClass);
             case "mods.railcraft.common.gui.containers.RailcraftContainer": return tryPatchRailcraftContainer(basicClass);
             case "mods.railcraft.client.core.ClientProxy": return tryFixFluidTextureWithThirdPartyMods(basicClass);
             case "mods.railcraft.common.gui.containers.ContainerWorldspike": return tryExpandStackSizeLimitInWorldSpikeGUI(basicClass);
@@ -43,8 +46,56 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.client.gui.GuiTrackRouting": return tryFixGuiRouting(basicClass);
             case "mods.railcraft.client.gui.GuiManipulatorCartRF": return tryDisableInvTitle(basicClass);
             case "mods.railcraft.common.modules.ModuleMagic$1": return tryReplaceFirestoneTicker(basicClass);
+            case "mods.railcraft.common.worldgen.VillagerTrades$GenericTrade": return fixTrades(basicClass);
             default: return basicClass;
         }
+    }
+
+    private static byte[] fixTrades(byte[] basicClass) {
+        return patch(basicClass, "prepareStack", (api, mv) -> new MethodVisitor(api, mv) {
+            @Override
+            public void visitTypeInsn(int opcode, String type) {
+                super.visitTypeInsn(opcode, type);
+                if (opcode == Opcodes.CHECKCAST && "net/minecraft/item/ItemStack".equals(type)) {
+                    super.visitMethodInsn(Opcodes.INVOKESTATIC, "info/tritusk/modpack/railcraft/patcher/hooks/Hooks", "fixTradeOffer", "(Lnet/minecraft/item/ItemStack;)Lnet/minecraft/item/ItemStack;", false);
+                }
+            }
+        });
+    }
+
+    private byte[] tryFixTradeStationBlockDrop(byte[] basicClass) {
+        ClassWriter writer = new ClassWriter(0);
+        new ClassReader(basicClass).accept(new BlockTradeStationPatcher(Opcodes.ASM5, writer), 0);
+        return writer.toByteArray();
+    }
+
+    private byte[] tryPatchSteamEngineCommonCode(byte[] basicClass) {
+        ClassWriter writer = new ClassWriter(0);
+        new ClassReader(basicClass).accept(new TileSteamEnginePatcher(Opcodes.ASM5, writer), 0);
+        return writer.toByteArray();
+    }
+
+    private byte[] tryFixHobbyistEngine(byte[] basicClass) {
+        ClassWriter writer = new ClassWriter(0);
+        new ClassReader(basicClass).accept(new TileHobbyistEnginePatcher(Opcodes.ASM5, writer), 0);
+        return writer.toByteArray();
+    }
+
+    private byte[] tryFixSolidBoilerContainer(byte[] basicClass) {
+        return patch(basicClass, "<init>", (api, mv) -> new MethodVisitor(api, mv) {
+            @Override
+            public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                if (opcode == Opcodes.INVOKEVIRTUAL && "addSlot".equals(name)) {
+                    // Redirect the addSlot call to our hooks, so that we can inspect and patch it before actually adding it.
+                    opcode = Opcodes.INVOKESTATIC;
+                    owner = "info/tritusk/modpack/railcraft/patcher/hooks/Hooks";
+                    name = "fixSolidBoilerSlotIndex";
+                    desc = "(Lmods/railcraft/common/gui/containers/RailcraftContainer;Lnet/minecraft/inventory/Slot;)V";
+                    itf = false;
+                }
+                super.visitMethodInsn(opcode, owner, name, desc, itf);
+            }
+        });
     }
 
     private byte[] tryAddWaterDrainLogic(byte[] basicClass) {

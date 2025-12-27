@@ -39,6 +39,7 @@ public class ModContainer extends DummyModContainer {
     public static boolean useAlternativeFirestoneTicker = true;
     public static boolean disableFluidTextureFix = true;
     public static boolean useAlternativeFluidTextureFix = true;
+    public static boolean hobbyistEngineCanAcceptSteam = true;
 
     public static String betaWarningMessageMode = "original";
     public static boolean oneLineBetaWarning = true;
@@ -103,6 +104,11 @@ public class ModContainer extends DummyModContainer {
                 "If Fluid Texture Fix is used, set this to true will use an alternative version of the fix, which is compatible with ExtraUtils2.");
         prop.setRequiresMcRestart(true);
         useAlternativeFluidTextureFix = prop.getBoolean();
+
+        prop = config.get("general", "hobbyistEngineCanAcceptSteam", true,
+                "If true, Hobbyist Steam Engine can accept steam from external sources, similar to its Commercial and Industrial counterpart. \nIf you want the 1.7.10 behavior - Hobbyist Engine cannot accept external steam - set this to false.");
+        prop.setRequiresWorldRestart(true);
+        hobbyistEngineCanAcceptSteam = prop.getBoolean();
 
         if (config.hasChanged()) {
             config.save();
