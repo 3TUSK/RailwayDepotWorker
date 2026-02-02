@@ -119,6 +119,8 @@ public class ModContainer extends DummyModContainer {
     public void postInit(FMLPostInitializationEvent event) {
         Recipes.addExtraRecipes();
 
+        Recipes.fixBlastFurnaceRecipe();
+
         if (betaWarningMessageMode != null) {
             dealWithBetaWarningMessage();
         }
