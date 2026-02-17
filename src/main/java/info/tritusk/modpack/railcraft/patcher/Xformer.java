@@ -24,6 +24,7 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.common.blocks.single.TileEngineSteam": return tryPatchSteamEngineCommonCode(basicClass);
             case "mods.railcraft.common.blocks.single.TileEngineSteamHobby": return tryFixHobbyistEngine(basicClass);
             case "mods.railcraft.common.blocks.structures.StructurePattern": return tryFixStructurePatternCheck(basicClass);
+            case "mods.railcraft.common.blocks.structures.TileFluxTransformer": return tryPatchFluxTransformer(basicClass);
             case "mods.railcraft.common.blocks.logic.IC2EmitterLogic": return tryFixIC2EmitterLogic(basicClass);
             case "mods.railcraft.common.blocks.machine.manipulator.TileRFLoader":
             case "mods.railcraft.common.blocks.machine.manipulator.TileRFUnloader": return tryReenableRFManipulatorGUI(basicClass);
@@ -47,6 +48,24 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.common.worldgen.VillagerTrades$GenericTrade": return fixTrades(basicClass);
             default: return basicClass;
         }
+    }
+
+    // GH-27: TileFluxTransformer does not have a "max energy capacity".
+    //        Some energy source may not see it as a fillable energy storage, rendering them malfunctioning.
+    //        Judging by the code, I believe CovertJaguar wants it to behave like an "energy black hole",
+    //        accepting all incoming energy and void the exceeded portion.
+    //        Therefore, we define the max energy capacity as Integer.MAX_VALUE (2^31 - 1 = 2147483647).
+    private static byte[] tryPatchFluxTransformer(byte[] basicClass) {
+        return patch(basicClass, "getMaxEnergyStored", (api, mv) -> new MethodVisitor(api, mv) {
+            @Override
+            public void visitInsn(int opcode) {
+                if (opcode == Opcodes.ICONST_0) {
+                    super.visitFieldInsn(Opcodes.GETSTATIC, "java/lang/Integer", "MAX_VALUE", "I");
+                } else {
+                    super.visitInsn(opcode);
+                }
+            }
+        });
     }
 
     private static byte[] fixTrades(byte[] basicClass) {
