@@ -20,6 +20,7 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.common.plugins.jei.rolling.RollingMachineRecipeCategory": return tryFixRollingRecipeDisplayInJEI(basicClass);
             case "mods.railcraft.common.blocks.TileRailcraft": return tryPatchingTileRailcraft(basicClass);
             case "mods.railcraft.common.blocks.machine.worldspike.TileWorldspike": return tryExpandStackSizeLimitInWorldSpike(basicClass);
+            case "mods.railcraft.common.blocks.ore.ItemOreMagic": return tryPatchFireStoneItemName(basicClass);
             case "mods.railcraft.common.blocks.single.BlockTradeStation": return tryFixTradeStationBlockDrop(basicClass);
             case "mods.railcraft.common.blocks.single.TileEngineSteam": return tryPatchSteamEngineCommonCode(basicClass);
             case "mods.railcraft.common.blocks.single.TileEngineSteamHobby": return tryFixHobbyistEngine(basicClass);
@@ -48,6 +49,12 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.common.worldgen.VillagerTrades$GenericTrade": return fixTrades(basicClass);
             default: return basicClass;
         }
+    }
+
+    private static byte[] tryPatchFireStoneItemName(byte[] basicClass) {
+        ClassWriter writer = new ClassWriter(0);
+        new ClassReader(basicClass).accept(new ItemOreMagicPatcher(Opcodes.ASM5, writer), 0);
+        return writer.toByteArray();
     }
 
     // GH-27: TileFluxTransformer does not have a "max energy capacity".
