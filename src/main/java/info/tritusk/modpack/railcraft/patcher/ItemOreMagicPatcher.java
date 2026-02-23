@@ -25,6 +25,17 @@ public class ItemOreMagicPatcher extends ClassVisitor {
         translationKeyGetter.visitMaxs(2, 2);
         translationKeyGetter.visitEnd();
 
+        MethodVisitor tooltipKeyGetterVisitor = super.visitMethod(Opcodes.ACC_PUBLIC | Opcodes.ACC_SYNTHETIC, "getTooltipTag", "(Lnet/minecraft/item/ItemStack;)Ljava/lang/String;", null, null);
+        tooltipKeyGetterVisitor.visitCode();
+        tooltipKeyGetterVisitor.visitVarInsn(Opcodes.ALOAD, 0);
+        tooltipKeyGetterVisitor.visitVarInsn(Opcodes.ALOAD, 1);
+        tooltipKeyGetterVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "net/minecraft/item/Item", translationKeyGetterName, methodDesc, false);
+        tooltipKeyGetterVisitor.visitLdcInsn(".tips.name");
+        tooltipKeyGetterVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "java/lang/String", "concat", "(Ljava/lang/String;)Ljava/lang/String;", false);
+        tooltipKeyGetterVisitor.visitInsn(Opcodes.ARETURN);
+        tooltipKeyGetterVisitor.visitMaxs(2, 2);
+        tooltipKeyGetterVisitor.visitEnd();
+
         super.visitEnd();
     }
 }
