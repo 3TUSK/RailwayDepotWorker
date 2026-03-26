@@ -38,6 +38,7 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.client.core.ClientProxy": return tryFixFluidTextureWithThirdPartyMods(basicClass);
             case "mods.railcraft.common.gui.containers.ContainerWorldspike": return tryExpandStackSizeLimitInWorldSpikeGUI(basicClass);
             case "mods.railcraft.client.gui.GuiAnvil": return tryFixAnvilScreen(basicClass);
+            case "mods.railcraft.client.gui.GuiBoiler": return tryFixFireIconOffset(basicClass);
             case "mods.railcraft.client.gui.GuiTrackDelayedLocking":
             case "mods.railcraft.client.gui.GuiTrackEmbarking":
             case "mods.railcraft.client.gui.GuiTrackLauncher":
@@ -49,6 +50,20 @@ public class Xformer implements IClassTransformer {
             case "mods.railcraft.common.worldgen.VillagerTrades$GenericTrade": return fixTrades(basicClass);
             default: return basicClass;
         }
+    }
+
+    private static byte[] tryFixFireIconOffset(byte[] basicClass) {
+        final String drawForeground = FMLDeobfuscatingRemapper.INSTANCE.mapMethodName("net/minecraft/client/gui/inventory/GuiContainer", "func_146976_a", "(FII)V");
+        return patch(basicClass, drawForeground, (api, mv) -> new MethodVisitor(api, mv) {
+            @Override
+            public void visitIntInsn(int opcode, int operand) {
+                super.visitIntInsn(opcode, operand);
+                if (opcode == Opcodes.BIPUSH && operand == 34) {
+                    super.visitVarInsn(Opcodes.ALOAD, 0);
+                    super.visitMethodInsn(Opcodes.INVOKESTATIC, "info/tritusk/modpack/railcraft/patcher/hooks/ClientHooks", "fixBoilerGUIFireOffset", "(ILmods/railcraft/client/gui/GuiBoiler;)I", false);
+                }
+            }
+        });
     }
 
     private static byte[] tryPatchFireStoneItemName(byte[] basicClass) {
